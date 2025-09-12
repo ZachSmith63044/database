@@ -1,0 +1,8 @@
+{
+	"InstallScripts" : 
+	[
+		"C:/Users/zakha/Documents/15. Database+/dbone/build/cmake_install.cmake",
+		"C:/Users/zakha/Documents/15. Database+/dbone/build/apps/dbone_cli/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

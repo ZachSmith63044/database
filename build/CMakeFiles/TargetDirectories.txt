@@ -1,0 +1,4 @@
+C:/Users/zakha/Documents/15. Database+/dbone/build/CMakeFiles/dbone.dir
+C:/Users/zakha/Documents/15. Database+/dbone/build/CMakeFiles/ALL_BUILD.dir
+C:/Users/zakha/Documents/15. Database+/dbone/build/CMakeFiles/ZERO_CHECK.dir
+C:/Users/zakha/Documents/15. Database+/dbone/build/apps/dbone_cli/CMakeFiles/dbone_cli.dir

@@ -1,0 +1,10 @@
+^C:\USERS\ZAKHA\DOCUMENTS\15. DATABASE+\DBONE\BUILD\CMAKEFILES\5FFF06B29A143C98B3A4D5E480857C55\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" "-SC:/Users/zakha/Documents/15. Database+/dbone" "-BC:/Users/zakha/Documents/15. Database+/dbone/build" --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file "C:/Users/zakha/Documents/15. Database+/dbone/build/dbone.sln"
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
