@@ -16,6 +16,8 @@ add_library(dbone
   src/constants.cpp
   src/storage.cpp
   src/index.cpp
+  src/row.cpp
+  src/clustered_index_node.cpp
   src/insert.cpp
   src/serialize.cpp
   src/columns/column.cpp

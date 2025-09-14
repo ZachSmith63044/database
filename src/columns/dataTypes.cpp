@@ -1,8 +1,10 @@
 #include "dbone/columns/dataTypes.hpp"
-#include <iostream>
+#include "dbone/serialize.hpp"
 #include <stdexcept>
 
-// ---- BigIntType ----
+// ================= BigIntType =================
+BigIntType::BigIntType(int64_t v) : value_(v) {}
+
 void BigIntType::to_bits(BitBuffer &buf) const {
     for (int i = 0; i < 64; i++) {
         bool bit = (value_ >> i) & 1;
@@ -10,14 +12,8 @@ void BigIntType::to_bits(BitBuffer &buf) const {
     }
 }
 
-BigIntType BigIntType::from_bits(BitBuffer &buf) {
-    int64_t v = 0;
-    for (int i = 0; i < 64; i++) {
-        bool bit = buf.getBit();  // must add getBit() to BitBuffer
-        if (bit) {
-            v |= (1ull << i);
-        }
-    }
+BigIntType BigIntType::from_bits(const std::vector<uint8_t> &payload, size_t& ref) {
+    int64_t v = readI64(payload, ref);
     return BigIntType(v);
 }
 
@@ -25,8 +21,20 @@ std::string BigIntType::default_value_str() const {
     return std::to_string(value_);
 }
 
-// ---- CharType ----
-void CharType::to_bits(BitBuffer &buf) const {
+std::unique_ptr<BigIntType> BigIntType::parse(const std::string &s) {
+    try {
+        long long v = std::stoll(s);
+        return std::make_unique<BigIntType>(v);
+    } catch (...) {
+        throw std::runtime_error("BigIntType::parse: invalid integer string '" + s + "'");
+    }
+}
+
+// ================= CharType =================
+CharType::CharType(std::string v, uint32_t length)
+    : value_(std::move(v)), length_(length) {}
+
+void CharType::to_bits(BitBuffer& buf) const {
     if (value_.size() != length_) {
         throw std::runtime_error("CharType::to_bits: value size != schema length");
     }
@@ -35,11 +43,11 @@ void CharType::to_bits(BitBuffer &buf) const {
     }
 }
 
-CharType CharType::from_bits(BitBuffer &buf, uint32_t length) {
+CharType CharType::from_bits(const std::vector<uint8_t> &payload, size_t& ref, uint32_t length) {
     std::string s;
     s.reserve(length);
     for (uint32_t i = 0; i < length; i++) {
-        char c = static_cast<char>(buf.getU8()); // must add getU8() to BitBuffer
+        char c = static_cast<char>(readU8(payload, ref));
         s.push_back(c);
     }
     return CharType(s, length);
@@ -47,4 +55,12 @@ CharType CharType::from_bits(BitBuffer &buf, uint32_t length) {
 
 std::string CharType::default_value_str() const {
     return "'" + value_ + "'";
+}
+
+std::unique_ptr<CharType> CharType::parse(const std::string &s, uint32_t length) {
+    if (s.size() != length) {
+        throw std::runtime_error("CharType::parse: string length mismatch (expected " +
+                                 std::to_string(length) + ", got " + std::to_string(s.size()) + ")");
+    }
+    return std::make_unique<CharType>(s, length);
 }

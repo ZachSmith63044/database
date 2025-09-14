@@ -34,6 +34,8 @@ int main(int argc, char **argv)
 {
     try
     {
+        
+        uint32_t PAGE_SIZE_DEFAULT = 4096;
         // std::string outPath = (argc > 1) ? argv[1] : std::string("schema_out");
 
         // // Build a sample schema
@@ -41,13 +43,19 @@ int main(int argc, char **argv)
         // s.table_name = "orders";
         // s.columns.emplace_back(std::make_unique<BigIntColumn>("id", /*nullable=*/false, /*pk=*/true, /*uniq=*/true, /*default=*/4342596));
         // s.columns.emplace_back(std::make_unique<CharColumn>("code", 8, /*nullable=*/false, /*pk=*/false, /*uniq=*/true, /*default=*/"ABCDEFGH"));
-        uint32_t PAGE_SIZE_DEFAULT = 4096;
+        // s.min_length = 128;
+        // std::string err;
+        // bool ok = create_table(s, "C:/Users/zakha/Documents/15. Database+/store", &err, PAGE_SIZE_DEFAULT);
+        // if (!ok)
+        // {
+        //     std::cerr << "create_table failed: " << err << "\n";
+        //     return 1;
+        // }
 
         // Example insert
         dbone::insert::Row row1 = {
             {"id", "123"},
-            {"code", "ABCDEFGH"},
-            {"imnotvar", "teeheehee"}};
+            {"code", "Hello Wo"}};
 
         auto result = dbone::insert::insert("C:/Users/zakha/Documents/15. Database+/store/table.efdb", row1, PAGE_SIZE_DEFAULT);
         if (!result.ok)

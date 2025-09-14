@@ -14,10 +14,10 @@
 namespace fs = std::filesystem;
 
 // Assumed to exist from your codebase:
-extern void put_u32(FILE *f, uint32_t v);
-extern void put_u16(FILE *f, uint16_t v);
-extern void put_u8(FILE *f, uint8_t v);
-extern void put_bytes(FILE *f, const std::string &s);
+// extern void put_u32(FILE *f, uint32_t v);
+// extern void put_u16(FILE *f, uint16_t v);
+// extern void put_u8(FILE *f, uint8_t v);
+// extern void put_bytes(FILE *f, const std::string &s);
 
 extern const uint32_t MAGIC;
 extern const uint16_t VERSION;
@@ -122,6 +122,7 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
 
     TableSchema schema;
     schema.table_name = table_name;
+    schema.clustered_page_ref = data_root_page;
 
     for (uint16_t i = 0; i < col_count; ++i)
     {
@@ -176,7 +177,9 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
             throw std::runtime_error("Unknown column type " + std::to_string(type_id));
         }
     }
-
+    schema.min_length = readU32(schema_payload, off);
+    
+    std::cout << "[read_schema] data_root_inside=" << *schema.clustered_page_ref << std::endl;
     std::cerr << "[read_schema] DONE parsing\n";
     return schema;
 }
@@ -239,6 +242,9 @@ bool create_table(const TableSchema &s,
     {
         col->to_bits(buf);
     }
+
+    // add new u32 at end of schema
+    buf.putU32(s.min_length);
 
     const std::vector<uint8_t> &schema_body = buf.bytes();
     LOG("schema_body size=%zu bytes", schema_body.size());

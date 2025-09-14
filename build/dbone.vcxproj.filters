@@ -13,6 +13,12 @@
     <ClCompile Include="C:\Users\zakha\Documents\15. Database+\dbone\src\index.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\zakha\Documents\15. Database+\dbone\src\row.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\zakha\Documents\15. Database+\dbone\src\clustered_index_node.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="C:\Users\zakha\Documents\15. Database+\dbone\src\insert.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

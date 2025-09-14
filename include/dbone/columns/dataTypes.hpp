@@ -2,55 +2,44 @@
 #include <string>
 #include <cstdint>
 #include <memory>
-#include <stdexcept>
-#include "dbone/bitbuffer.hpp"  // your BitBuffer class
+#include "dbone/bitbuffer.hpp"
 
-// Base class for all data types
 class DataType {
 public:
     virtual ~DataType() = default;
-
-    // Write value to buffer (bit-level packing)
     virtual void to_bits(BitBuffer &buf) const = 0;
-
-    // Return default as human-readable string
     virtual std::string default_value_str() const = 0;
 };
 
-// -------- BigInt (64-bit integer) --------
+// ---------------- BigIntType ----------------
 class BigIntType : public DataType {
 public:
-    explicit BigIntType(int64_t value = 0) : value_(value) {}
+    explicit BigIntType(int64_t v);
 
     void to_bits(BitBuffer &buf) const override;
+    static BigIntType from_bits(const std::vector<uint8_t> &payload, size_t& ref);
+
     std::string default_value_str() const override;
 
-    static BigIntType from_bits(BitBuffer &buf);
-
-    int64_t value() const { return value_; }
+    // NEW: parse from string
+    static std::unique_ptr<BigIntType> parse(const std::string &s);
 
 private:
     int64_t value_;
 };
 
-// -------- Fixed CHAR(N) --------
+// ---------------- CharType ----------------
 class CharType : public DataType {
 public:
-    CharType(std::string value = "", uint32_t length = 1)
-        : value_(std::move(value)), length_(length) {
-        if (value_.size() != length_) {
-            throw std::runtime_error(
-                "CharType value length mismatch with schema length");
-        }
-    }
+    CharType(std::string v, uint32_t length);
 
     void to_bits(BitBuffer &buf) const override;
+    static CharType from_bits(const std::vector<uint8_t> &payload, size_t& ref, uint32_t length);
+
     std::string default_value_str() const override;
 
-    static CharType from_bits(BitBuffer &buf, uint32_t length);
-
-    std::string value() const { return value_; }
-    uint32_t length() const { return length_; }
+    // NEW: parse from string
+    static std::unique_ptr<CharType> parse(const std::string &s, uint32_t length);
 
 private:
     std::string value_;

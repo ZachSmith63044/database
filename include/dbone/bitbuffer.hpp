@@ -3,9 +3,27 @@
 #include <cstdint>
 #include <string>
 #include <stdexcept>
+#include <iomanip>
+#include <iostream>
 
 class BitBuffer {
 public:
+
+    void printHex(size_t bytesPerLine = 16) const {
+        std::cout << "BitBuffer (size=" << data_.size() << " bytes):\n";
+        for (size_t i = 0; i < data_.size(); i += bytesPerLine) {
+            // print offset
+            std::cout << std::setw(6) << std::setfill('0') << std::hex << i << " : ";
+            // print hex values
+            for (size_t j = 0; j < bytesPerLine && i + j < data_.size(); j++) {
+                std::cout << std::setw(2) << std::setfill('0')
+                          << static_cast<int>(data_[i + j]) << " ";
+            }
+            std::cout << "\n";
+        }
+        std::cout << std::dec; // reset back to decimal
+    }
+
     // ---- Writing API ----
     void putBit(bool value) {
         if (writeBitOffset_ == 0) {
@@ -26,6 +44,10 @@ public:
     void putU8(uint8_t v)   { putBits(v, 8); }
     void putU16(uint16_t v) { putBits(v, 16); }
     void putU32(uint32_t v) { putBits(v, 32); }
+    void putI64(int64_t v) {
+        for (int i = 7; i >= 0; --i)
+            data_.push_back((v >> (i * 8)) & 0xFF);
+    }
 
     void putString(const std::string &s) {
         putU16(static_cast<uint16_t>(s.size()));

@@ -1,8 +1,13 @@
 #include "dbone/insert.hpp"
 #include "dbone/schema.hpp"
-// #include "dbone/columns/column.hpp"
+#include "dbone/storage.hpp"
+#include "dbone/serialize.hpp"
+#include "dbone/clustered_index_node.hpp"
 #include <sstream>
 #include <iostream>
+#include <fstream>
+#include <vector>
+#include <iomanip>
 
 namespace dbone::insert
 {
@@ -48,16 +53,146 @@ namespace dbone::insert
         return {true, ""};
     }
 
+    bool insertInto(const std::string &db_path, uint32_t page_num, const Row &row, uint32_t page_size, const TableSchema &schema)
+    {
+        // --- Read clustered index page ---
+        std::ifstream in(db_path, std::ios::binary);
+        if (!in)
+        {
+            return false;
+        }
+
+        uint64_t offset = static_cast<uint64_t>(page_num) * page_size;
+        in.seekg(offset, std::ios::beg);
+
+        if (!in)
+        {
+            return false;
+        }
+
+        // --- read root page ---
+        std::vector<uint8_t> root(page_size);
+        in.read(reinterpret_cast<char *>(root.data()), root.size());
+        if (!in)
+        {
+            return false;
+        }
+
+        size_t off = 0;
+        uint32_t page_count = readU32(root, off);
+
+        // --- read page list ---
+        std::vector<uint32_t> page_list;
+        for (uint32_t i = 1; i < page_count; ++i)
+        {
+            uint32_t pg = readU32(root, off);
+            page_list.push_back(pg);
+        }
+
+        std::cout << "[insert] Clustered index references " << page_list.size()
+                  << " extra pages\n";
+
+        // --- assemble full payload ---
+        // header size = 4 + (page_count-1)*4
+        size_t header_size = 4u + 4u * (page_count > 0 ? (page_count - 1) : 0);
+        if (header_size > page_size)
+        {
+            return false;
+        }
+
+        std::vector<uint8_t> full_payload;
+
+        // copy remainder of root page (after header)
+        if (header_size < root.size())
+        {
+            full_payload.insert(full_payload.end(),
+                                root.begin() + header_size, root.end());
+        }
+
+        // load and append each page in the list
+        for (uint32_t pg : page_list)
+        {
+            uint64_t pg_off = static_cast<uint64_t>(pg) * page_size;
+            std::vector<uint8_t> buf(page_size);
+
+            in.seekg(pg_off, std::ios::beg);
+            if (!in)
+            {
+                return false;
+            }
+
+            in.read(reinterpret_cast<char *>(buf.data()), buf.size());
+            if (!in)
+            {
+                return false;
+            }
+
+            full_payload.insert(full_payload.end(), buf.begin(), buf.end());
+        }
+
+        std::cout << "[insert] Full clustered index payload size="
+                  << full_payload.size() << " bytes\n";
+
+        // --- dump as hex ---
+        for (size_t i = 0; i < full_payload.size(); i += 16)
+        {
+            std::cout << std::hex << std::setw(6) << std::setfill('0') << i << " : ";
+            for (size_t j = 0; j < 16 && i + j < full_payload.size(); j++)
+            {
+                std::cout << std::setw(2) << std::setfill('0')
+                          << static_cast<int>(full_payload[i + j]) << " ";
+            }
+            std::cout << "\n";
+        }
+        std::cout << std::dec;
+
+        size_t ref = 0;
+        uint16_t nRows = readU32(full_payload, ref);
+
+        std::cout << nRows << ", ref: " << ref << std::endl;
+
+        ClusteredIndexNode clusteredIndexNode;
+        clusteredIndexNode.set_original_page(*schema.clustered_page_ref);
+        clusteredIndexNode.add_pointer(readU32(full_payload, ref));
+
+        for (size_t i = 0; i < nRows; i++)
+        {
+            std::cout << "MORE ROWS" << std::endl;
+            DataRow row = DataRow::bits_to_row(full_payload, ref, schema);
+            row.print();
+            clusteredIndexNode.add_row(std::move(row));
+            clusteredIndexNode.add_pointer(readU32(full_payload, ref));
+        }
+
+        if (nRows == 0)
+        {
+            clusteredIndexNode.add_row(std::move(DataRow::fromRow(row, schema)));
+            clusteredIndexNode.add_pointer(static_cast<uint32_t>(0));
+        }
+
+        clusteredIndexNode.print();
+        clusteredIndexNode.to_bits().printHex();
+        // clusteredIndexNode.save(db_path, page_size);
+
+        return true;
+    }
+
     ValidationResult insert(const std::string &db_path, const Row &row, uint32_t page_size)
     {
         std::string err;
-        TableSchema schema = read_schema(db_path, page_size);
+        TableSchema schema(read_schema(db_path, page_size));
         if (!err.empty())
         {
             return {false, "Failed to load schema: " + err};
         }
 
-        return validate_row(schema, row);
+        ValidationResult validationResult = validate_row(schema, row);
+
+        std::cout << "[insert] clustered_page_ref = " << *schema.clustered_page_ref << std::endl;
+
+        insertInto(db_path, *schema.clustered_page_ref, row, page_size, schema);
+
+        return validationResult;
     }
 
 } // namespace dbone::insert

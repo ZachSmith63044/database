@@ -26,6 +26,23 @@ inline uint32_t readU32(const std::vector<uint8_t>& buf, size_t& off) {
     return v;
 }
 
+inline int64_t readI64(const std::vector<uint8_t>& buf, size_t& off) {
+    if (off + 8 > buf.size())
+        throw std::runtime_error("readI64: out of bounds at off=" + std::to_string(off));
+
+    uint64_t v =  static_cast<uint64_t>(buf[off]) |
+                 (static_cast<uint64_t>(buf[off+1]) << 8) |
+                 (static_cast<uint64_t>(buf[off+2]) << 16) |
+                 (static_cast<uint64_t>(buf[off+3]) << 24) |
+                 (static_cast<uint64_t>(buf[off+4]) << 32) |
+                 (static_cast<uint64_t>(buf[off+5]) << 40) |
+                 (static_cast<uint64_t>(buf[off+6]) << 48) |
+                 (static_cast<uint64_t>(buf[off+7]) << 56);
+
+    off += 8;
+    return static_cast<int64_t>(v);
+}
+
 inline std::string readString(const std::vector<uint8_t>& buf, size_t& off) {
     uint16_t len = readU16(buf, off);
     if (off + len > buf.size())
