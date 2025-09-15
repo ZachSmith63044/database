@@ -10,6 +10,7 @@
 #include "dbone/insert.hpp"
 #include <memory>
 #include <iostream>
+#include <chrono>
 
 namespace fs = std::filesystem;
 
@@ -34,39 +35,50 @@ int main(int argc, char **argv)
 {
     try
     {
-        
+
         uint32_t PAGE_SIZE_DEFAULT = 4096;
         // std::string outPath = (argc > 1) ? argv[1] : std::string("schema_out");
 
         // // Build a sample schema
-        // TableSchema s;
-        // s.table_name = "orders";
-        // s.columns.emplace_back(std::make_unique<BigIntColumn>("id", /*nullable=*/false, /*pk=*/true, /*uniq=*/true, /*default=*/4342596));
-        // s.columns.emplace_back(std::make_unique<CharColumn>("code", 8, /*nullable=*/false, /*pk=*/false, /*uniq=*/true, /*default=*/"ABCDEFGH"));
-        // s.min_length = 128;
-        // std::string err;
-        // bool ok = create_table(s, "C:/Users/zakha/Documents/15. Database+/store", &err, PAGE_SIZE_DEFAULT);
-        // if (!ok)
-        // {
-        //     std::cerr << "create_table failed: " << err << "\n";
-        //     return 1;
-        // }
+        TableSchema s;
+        s.table_name = "orders";
+        s.columns.emplace_back(std::make_unique<BigIntColumn>("id", /*nullable=*/false, /*pk=*/true, /*uniq=*/true, /*default=*/4342596));
+        s.columns.emplace_back(std::make_unique<CharColumn>("code", 8, /*nullable=*/false, /*pk=*/false, /*uniq=*/true, /*default=*/"ABCDEFGH"));
+        s.min_length = 128;
+        std::string err;
+        bool ok = create_table(s, "C:/Users/zakha/Documents/15. Database+/store", &err, PAGE_SIZE_DEFAULT);
+        if (!ok)
+        {
+            std::cerr << "create_table failed: " << err << "\n";
+            return 1;
+        }
 
         // Example insert
-        dbone::insert::Row row1 = {
-            {"id", "123"},
-            {"code", "Hello Wo"}};
-
-        auto result = dbone::insert::insert("C:/Users/zakha/Documents/15. Database+/store/table.efdb", row1, PAGE_SIZE_DEFAULT);
-        if (!result.ok)
+        auto start = std::chrono::high_resolution_clock::now();
+        for (size_t i = 0; i < 200; i++)
         {
-            std::cerr << "Insert failed: " << result.error << "\n";
-        }
-        else
-        {
-            std::cout << "Insert validated successfully!\n";
+            dbone::insert::Row row1 = {
+                {"id", std::to_string(i)},
+                {"code", "Another!"}};
+
+            auto result = dbone::insert::insert(
+                "C:/Users/zakha/Documents/15. Database+/store/table.efdb",
+                row1,
+                PAGE_SIZE_DEFAULT);
+
+            if (!result.ok)
+            {
+                std::cerr << "Insert failed: " << result.error << "\n";
+            }
+            else
+            {
+                // std::cout << "Insert validated successfully!\n";
+            }
         }
 
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+        std::cout << "Insert took " << duration.count() / 1000.0f << " milloseconds\n";
         // std::string err;
         // bool ok = create_table(s, "C:/Users/zakha/Documents/15. Database+/store", &err, PAGE_SIZE_DEFAULT);
         // if (!ok)

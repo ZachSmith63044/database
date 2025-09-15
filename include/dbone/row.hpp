@@ -32,6 +32,8 @@ public:
     
     void print() const;
 
+
+
     // Conversion from Row + Schema
     static DataRow fromRow(const dbone::insert::Row &row, const TableSchema &schema);
     static DataRow bits_to_row(const std::vector<uint8_t>& payload, size_t& ref, const TableSchema& schema);

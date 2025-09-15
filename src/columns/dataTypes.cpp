@@ -30,6 +30,20 @@ std::unique_ptr<BigIntType> BigIntType::parse(const std::string &s) {
     }
 }
 
+bool BigIntType::equals(const DataType& other) const {
+    if (auto p = dynamic_cast<const BigIntType*>(&other)) {
+        return value_ == p->value_;
+    }
+    throw std::runtime_error("Type mismatch in BigIntType::equals");
+}
+
+bool BigIntType::less(const DataType& other) const {
+    if (auto p = dynamic_cast<const BigIntType*>(&other)) {
+        return value_ < p->value_;
+    }
+    throw std::runtime_error("Type mismatch in BigIntType::less");
+}
+
 // ================= CharType =================
 CharType::CharType(std::string v, uint32_t length)
     : value_(std::move(v)), length_(length) {}
@@ -63,4 +77,18 @@ std::unique_ptr<CharType> CharType::parse(const std::string &s, uint32_t length)
                                  std::to_string(length) + ", got " + std::to_string(s.size()) + ")");
     }
     return std::make_unique<CharType>(s, length);
+}
+
+bool CharType::equals(const DataType& other) const {
+    if (auto p = dynamic_cast<const CharType*>(&other)) {
+        return value_ == p->value_;
+    }
+    throw std::runtime_error("Type mismatch in CharType::equals");
+}
+
+bool CharType::less(const DataType& other) const {
+    if (auto p = dynamic_cast<const CharType*>(&other)) {
+        return value_ < p->value_;
+    }
+    throw std::runtime_error("Type mismatch in CharType::less");
 }

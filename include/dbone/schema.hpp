@@ -21,6 +21,7 @@ struct TableSchema {
     std::vector<std::unique_ptr<Column>> columns;
     uint32_t min_length{};
     std::optional<uint32_t> clustered_page_ref;
+    std::optional<uint32_t> available_pages_ref;
 };
 
 

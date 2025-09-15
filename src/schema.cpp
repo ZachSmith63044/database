@@ -44,8 +44,6 @@ static void dump_bytes(const std::vector<uint8_t> &buf, size_t off, size_t count
 
 TableSchema read_schema(const std::string &file, uint32_t page_size)
 {
-    std::cerr << "[read_schema] Opening file: " << file << " page_size=" << page_size << "\n";
-
     std::ifstream in(file, std::ios::binary);
     if (!in)
         throw std::runtime_error("Failed to open schema file: " + file);
@@ -55,13 +53,11 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
     in.read(reinterpret_cast<char *>(page.data()), page.size());
     if (in.gcount() != static_cast<std::streamsize>(page_size))
         throw std::runtime_error("Failed to read first schema page");
-    std::cerr << "[read_schema] Read first page OK\n";
 
     size_t off = 0;
 
     // page_count (1 byte)
     uint8_t page_count = readU8(page, off);
-    std::cerr << "[read_schema] page_count=" << (int)page_count << "\n";
 
     // page list
     std::vector<uint32_t> page_list;
@@ -70,15 +66,12 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
         uint32_t pg = readU32(page, off);
         page_list.push_back(pg);
     }
-    std::cerr << "[read_schema] page_list size=" << page_list.size() << "\n";
 
     // --- Step 2: figure out payload bytes inside page 0
     uint64_t header_size = 1ull + 4ull * (page_count - 1);
     if (header_size > page_size)
         throw std::runtime_error("Invalid header size > page size");
     size_t payload_in_page0 = page_size - static_cast<size_t>(header_size);
-    std::cerr << "[read_schema] header_size=" << header_size
-              << " payload_in_page0=" << payload_in_page0 << "\n";
 
     // gather schema payload
     std::vector<uint8_t> schema_payload;
@@ -86,12 +79,9 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
                           page.begin() + header_size,
                           page.begin() + header_size + payload_in_page0);
 
-    std::cerr << "[read_schema] schema_payload after page0=" << schema_payload.size() << " bytes\n";
-
     // --- Step 3: read additional schema pages if listed
     for (uint32_t pg : page_list)
     {
-        std::cerr << "[read_schema] Reading schema page " << pg << "\n";
         in.seekg(static_cast<std::streamoff>(pg) * page_size, std::ios::beg);
         std::vector<uint8_t> buf(page_size);
         in.read(reinterpret_cast<char *>(buf.data()), buf.size());
@@ -99,54 +89,42 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
             throw std::runtime_error("Failed to read schema page " + std::to_string(pg));
         schema_payload.insert(schema_payload.end(), buf.begin(), buf.end());
     }
-    std::cerr << "[read_schema] Final schema_payload=" << schema_payload.size() << " bytes\n";
 
     // --- Step 4: parse schema_payload
     off = 0;
     uint32_t data_root_page = readU32(schema_payload, off);
-    std::cerr << "[read_schema] data_root_page=" << data_root_page << "\n";
+    uint32_t available_pages = readU32(schema_payload, off);
 
-    dump_bytes(schema_payload, off, 16, "start of schema_body");
+    // dump_bytes(schema_payload, off, 16, "start of schema_body");
 
     uint32_t magic = readU32(schema_payload, off);
     uint16_t version = readU16(schema_payload, off);
-    std::cerr << "[read_schema] MAGIC=0x" << std::hex << magic
-              << " VERSION=" << std::dec << version << "\n";
 
-    dump_bytes(schema_payload, off, 16, "before table_name");
+    // dump_bytes(schema_payload, off, 16, "before table_name");
     std::string table_name = readString(schema_payload, off);
-    std::cerr << "[read_schema] table_name=" << table_name << "\n";
 
     uint16_t col_count = readU16(schema_payload, off);
-    std::cerr << "[read_schema] col_count=" << col_count << "\n";
 
     TableSchema schema;
     schema.table_name = table_name;
     schema.clustered_page_ref = data_root_page;
+    schema.available_pages_ref = available_pages;
 
     for (uint16_t i = 0; i < col_count; ++i)
     {
-        std::cerr << "[read_schema] --- column " << i << " ---\n";
-
-        dump_bytes(schema_payload, off, 16, "before col_name");
+        // dump_bytes(schema_payload, off, 16, "before col_name");
         std::string col_name = readString(schema_payload, off);
-        std::cerr << "[read_schema] col_name=" << col_name << "\n";
 
         uint8_t packed = readU8(schema_payload, off);
-        std::cerr << "[read_schema] packed=0x" << std::hex << (int)packed << std::dec << "\n";
 
         bool nullable = (packed & (1u << 7)) != 0;
         bool primaryKey = (packed & (1u << 6)) != 0;
         bool unique = (packed & (1u << 5)) != 0;
         uint8_t type_id = packed & 0x1F;
-        std::cerr << " flags: nullable=" << nullable
-                  << " pk=" << primaryKey
-                  << " uniq=" << unique
-                  << " type=" << (int)type_id << "\n";
 
         if (type_id == 1)
         { // BIGINT
-            dump_bytes(schema_payload, off, 8, "BIGINT default bytes");
+            // dump_bytes(schema_payload, off, 8, "BIGINT default bytes");
             if (off + 8 > schema_payload.size())
                 throw std::runtime_error("BIGINT default out of bounds");
             int64_t def = 0;
@@ -155,20 +133,17 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
                 def |= static_cast<int64_t>(schema_payload[off + b]) << (8 * b);
             }
             off += 8;
-            std::cerr << "[read_schema] BIGINT default=" << def << "\n";
             schema.columns.emplace_back(
                 std::make_unique<BigIntColumn>(col_name, nullable, primaryKey, unique, def));
         }
         else if (type_id == 2)
         { // CHAR(N)
             uint32_t len = readU32(schema_payload, off);
-            std::cerr << "[read_schema] CHAR length=" << len << "\n";
-            dump_bytes(schema_payload, off, len, "CHAR default bytes");
+            // dump_bytes(schema_payload, off, len, "CHAR default bytes");
             if (off + len > schema_payload.size())
                 throw std::runtime_error("CHAR default out of bounds");
             std::string def(reinterpret_cast<const char *>(&schema_payload[off]), len);
             off += len;
-            std::cerr << "[read_schema] CHAR default='" << def << "'\n";
             schema.columns.emplace_back(
                 std::make_unique<CharColumn>(col_name, len, nullable, primaryKey, unique, def));
         }
@@ -178,9 +153,7 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
         }
     }
     schema.min_length = readU32(schema_payload, off);
-    
-    std::cout << "[read_schema] data_root_inside=" << *schema.clustered_page_ref << std::endl;
-    std::cerr << "[read_schema] DONE parsing\n";
+
     return schema;
 }
 
@@ -287,17 +260,27 @@ bool create_table(const TableSchema &s,
     }
 
     const uint32_t data_root_page = page_count;
-    const uint32_t total_pages = page_count + 1;
+    const uint32_t empty_pages_page = page_count + 1;
+    const uint32_t total_pages = page_count + 1 + 1;
     LOG("decided: schema pages=%u, data_root_page=%u, total_pages=%u",
         page_count, data_root_page, total_pages);
 
     // --- 3) Payload: root page pointer + schema body
     std::vector<uint8_t> payload;
-    payload.reserve(schema_body.size() + sizeof(uint32_t));
+    payload.reserve(schema_body.size() + sizeof(uint32_t) + sizeof(uint32_t));
+
+    // push data_root_page (uint32_t)
     payload.push_back(uint8_t(data_root_page & 0xFF));
     payload.push_back(uint8_t((data_root_page >> 8) & 0xFF));
     payload.push_back(uint8_t((data_root_page >> 16) & 0xFF));
     payload.push_back(uint8_t((data_root_page >> 24) & 0xFF));
+
+    // push empty_pages_page (uint32_t, lower 4 bytes only)
+    payload.push_back(uint8_t(empty_pages_page & 0xFF));
+    payload.push_back(uint8_t((empty_pages_page >> 8) & 0xFF));
+    payload.push_back(uint8_t((empty_pages_page >> 16) & 0xFF));
+    payload.push_back(uint8_t((empty_pages_page >> 24) & 0xFF));
+
     payload.insert(payload.end(), schema_body.begin(), schema_body.end());
     const uint64_t payload_size = payload.size();
     LOG("payload size=%llu bytes", (unsigned long long)payload_size);
@@ -417,6 +400,8 @@ bool create_table(const TableSchema &s,
         std::fclose(f);
         return false;
     }
+
+    dbone::index::add_empty_clustered_index(f, data_root_page + 1, page_size);
 
     std::fclose(f);
     LOG("file closed");

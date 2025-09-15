@@ -3,16 +3,36 @@
 #include <algorithm>
 #include <iostream>
 #include <fstream>
+#include <filesystem>
 // Add a row
 void ClusteredIndexNode::add_row(DataRow&& row)
 {
     items_.push_back(std::move(row));
 }
 
+void ClusteredIndexNode::add_row_at(DataRow&& row, size_t position)
+{
+    if (position > items_.size()) {
+        throw std::out_of_range("ClusteredIndexNode::add_row_at: position out of range");
+    }
+
+    items_.insert(items_.begin() + position, std::move(row));
+}
+
+
 // Add a page pointer
 void ClusteredIndexNode::add_pointer(uint32_t page_pointer)
 {
     page_pointers_.push_back(page_pointer);
+}
+
+void ClusteredIndexNode::add_pointer_at(uint32_t page_pointer, size_t position)
+{
+    if (position > page_pointers_.size()) {
+        throw std::out_of_range("ClusteredIndexNode::add_pointer_at: position out of range");
+    }
+
+    page_pointers_.insert(page_pointers_.begin() + position, page_pointer);
 }
 
 // Set original page
@@ -36,6 +56,17 @@ void ClusteredIndexNode::set_available_pages(const std::vector<uint32_t> &pages)
             next_new_page_id_ = p + 1;
         }
     }
+}
+
+// Set available pages
+void ClusteredIndexNode::set_extra_available_pages(const std::vector<uint32_t> &pages)
+{
+    extra_available_pages_ = pages;
+}
+
+std::vector<DataRow>& ClusteredIndexNode::get_items()
+{
+    return items_;
 }
 
 // Build payload buffer
@@ -62,9 +93,14 @@ BitBuffer ClusteredIndexNode::to_bits() const
     return buf;
 }
 
+size_t num_pages_in_file(const std::string& path, size_t page_size) {
+    namespace fs = std::filesystem;
+    auto file_size = fs::file_size(path);
+    return file_size / page_size;
+}
+
 std::vector<uint32_t> ClusteredIndexNode::save(const std::string &db_path, uint32_t page_size)
 {
-    std::cout << "SAVE STARTED" << std::endl;
     if (!original_page_) {
         throw std::runtime_error("ClusteredIndexNode::save: original page not set");
     }
@@ -92,8 +128,22 @@ std::vector<uint32_t> ClusteredIndexNode::save(const std::string &db_path, uint3
         if (used_pages.size() >= num_pages_needed) break;
         used_pages.push_back(p);
     }
+    bool reupload = false;
+    for (size_t i = 0; i < extra_available_pages_.size(); i++)
+    {
+        if (used_pages.size() >= num_pages_needed) break;
+        uint32_t p = extra_available_pages_[i];
+        extra_available_pages_.erase(extra_available_pages_.begin() + i);
+        used_pages.push_back(p);
+        reupload = true;
+    }
+    if (reupload)
+    {
+        
+    }
+    size_t next_page = num_pages_in_file(db_path, page_size);
     while (used_pages.size() < num_pages_needed) {
-        used_pages.push_back(next_new_page_id_++);
+        used_pages.push_back(next_page++);
     }
 
     // Build the header in a temporary buffer
@@ -128,8 +178,6 @@ std::vector<uint32_t> ClusteredIndexNode::save(const std::string &db_path, uint3
     }
     out.flush();
 
-    std::cout << "SAVE COMPLETE: wrote " << used_pages.size() << " pages\n";
-
     return used_pages;
 }
 
@@ -161,6 +209,8 @@ void ClusteredIndexNode::print() const {
     } else {
         std::cout << "  original_page = (none)\n";
     }
+
+    std::cout << available_pages_.size() << std::endl;
 
     std::cout << "}\n";
 }

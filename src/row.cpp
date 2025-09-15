@@ -73,11 +73,9 @@ DataRow DataRow::bits_to_row(const std::vector<uint8_t> &payload,
     DataRow dr;
 
     uint16_t rowLength = readU16(payload, ref);
-    std::cout << rowLength << std::endl;
     for (size_t i = 0; i < rowLength; i++)
     {
         uint16_t columnNum = readU16(payload, ref);
-        std::cout << columnNum << std::endl;
         dr.set(columnNum, schema.columns[columnNum].get()->from_bits(payload, ref));
         // schema.columns[columnNum].get().;
         if (schema.columns[columnNum].get()->primaryKey())
