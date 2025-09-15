@@ -202,7 +202,7 @@ namespace dbone::insert
         // clusteredIndexNode.print();
         // clusteredIndexNode.print();
         // clusteredIndexNode.to_bits().printHex();
-        clusteredIndexNode.save(db_path, page_size);
+        clusteredIndexNode.save(db_path, schema, page_size);
 
         return true;
     }

@@ -29,7 +29,7 @@ public:
 
     // Save clustered index across pages
     // Returns list of page IDs used
-    std::vector<uint32_t> save(const std::string &db_path, uint32_t page_size = 4096);
+    std::vector<uint32_t> save(const std::string &db_path, const TableSchema &schema, uint32_t page_size = 4096);
 
     bool is_leaf() const { return page_pointers_.empty(); }
 
