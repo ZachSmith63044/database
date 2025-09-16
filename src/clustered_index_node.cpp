@@ -5,6 +5,7 @@
 #include <fstream>
 #include <filesystem>
 #include "dbone/availablePages.hpp"
+#include "dbone/clustered_index_node.hpp"
 // Add a row
 void ClusteredIndexNode::add_row(DataRow &&row)
 {
@@ -27,6 +28,13 @@ void ClusteredIndexNode::add_pointer(uint32_t page_pointer)
     page_pointers_.push_back(page_pointer);
 }
 
+// Add a page pointer
+void ClusteredIndexNode::clear_pointers()
+{
+    std::vector<uint32_t> newPtrs;
+    page_pointers_ = newPtrs;
+}
+
 void ClusteredIndexNode::add_pointer_at(uint32_t page_pointer, size_t position)
 {
     if (position > page_pointers_.size())
@@ -35,6 +43,16 @@ void ClusteredIndexNode::add_pointer_at(uint32_t page_pointer, size_t position)
     }
 
     page_pointers_.insert(page_pointers_.begin() + position, page_pointer);
+}
+
+void ClusteredIndexNode::set_pointer_at(uint32_t page_pointer, size_t position)
+{
+    if (position > page_pointers_.size())
+    {
+        throw std::out_of_range("ClusteredIndexNode::add_pointer_at: position out of range");
+    }
+
+    page_pointers_[position] = page_pointer;
 }
 
 // Set original page
@@ -71,6 +89,11 @@ std::vector<DataRow> &ClusteredIndexNode::get_items()
     return items_;
 }
 
+std::vector<uint32_t> &ClusteredIndexNode::get_page_pointers()
+{
+    return page_pointers_;
+}
+
 // Build payload buffer
 BitBuffer ClusteredIndexNode::to_bits() const
 {
@@ -102,7 +125,17 @@ size_t num_pages_in_file(const std::string &path, size_t page_size)
     return file_size / page_size;
 }
 
-std::vector<uint32_t> ClusteredIndexNode::save(const std::string &db_path, const TableSchema &schema, uint32_t page_size)
+std::vector<uint32_t> ClusteredIndexNode::get_available_pages_index()
+{
+    return available_pages_;
+}
+
+std::optional<uint32_t> ClusteredIndexNode::get_original_page()
+{
+    return original_page_;
+}
+
+std::vector<uint32_t> ClusteredIndexNode::save(const std::string &db_path, const TableSchema &schema, uint32_t page_size, bool save)
 {
     if (!original_page_)
     {
@@ -141,9 +174,7 @@ std::vector<uint32_t> ClusteredIndexNode::save(const std::string &db_path, const
     {
         bool reupload = false;
 
-        std::cout << *schema.available_pages_ref << std::endl;
         available_pages availablePages = get_available_pages(db_path, *schema.available_pages_ref, page_size);
-        std::cout << "AFTER" << std::endl;
 
         for (size_t i = 0; i < extra_available_pages_.size(); i++)
         {
@@ -187,22 +218,25 @@ std::vector<uint32_t> ClusteredIndexNode::save(const std::string &db_path, const
     }
 
     // ---- Write each page individually ----
-    std::fstream out(db_path, std::ios::in | std::ios::out | std::ios::binary);
-    if (!out)
-        throw std::runtime_error("Failed to open database file for writing");
-
-    for (size_t i = 0; i < used_pages.size(); i++)
+    if (save)
     {
-        uint64_t offset = static_cast<uint64_t>(used_pages[i]) * page_size;
-        out.seekp(offset, std::ios::beg);
-        out.write(reinterpret_cast<const char *>(&final_bytes[i * page_size]), page_size);
-
+        std::fstream out(db_path, std::ios::in | std::ios::out | std::ios::binary);
         if (!out)
+            throw std::runtime_error("Failed to open database file for writing");
+
+        for (size_t i = 0; i < used_pages.size(); i++)
         {
-            throw std::runtime_error("Failed to write page " + std::to_string(used_pages[i]));
+            uint64_t offset = static_cast<uint64_t>(used_pages[i]) * page_size;
+            out.seekp(offset, std::ios::beg);
+            out.write(reinterpret_cast<const char *>(&final_bytes[i * page_size]), page_size);
+
+            if (!out)
+            {
+                throw std::runtime_error("Failed to write page " + std::to_string(used_pages[i]));
+            }
         }
+        out.flush();
     }
-    out.flush();
 
     return used_pages;
 }

@@ -17,7 +17,7 @@ public:
     DataRow(const DataRow&) = delete;
     DataRow& operator=(const DataRow&) = delete;
 
-    // Enable moving
+    // Explicitly allow moving (important for std::vector)
     DataRow(DataRow&&) noexcept = default;
     DataRow& operator=(DataRow&&) noexcept = default;
 
@@ -32,15 +32,11 @@ public:
     
     void print() const;
 
-
-
     // Conversion from Row + Schema
     static DataRow fromRow(const dbone::insert::Row &row, const TableSchema &schema);
     static DataRow bits_to_row(const std::vector<uint8_t>& payload, size_t& ref, const TableSchema& schema);
-
 
 private:
     std::unordered_map<uint16_t, std::unique_ptr<DataType>> values_;
     std::optional<uint16_t> primaryKeyIndex_;
 };
-

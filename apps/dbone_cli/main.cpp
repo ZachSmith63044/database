@@ -55,7 +55,7 @@ int main(int argc, char **argv)
 
         // Example insert
         auto start = std::chrono::high_resolution_clock::now();
-        for (size_t i = 0; i < 600; i++)
+        for (size_t i = 0; i < 40000; i++)
         {
             dbone::insert::Row row1 = {
                 {"id", std::to_string(i)},

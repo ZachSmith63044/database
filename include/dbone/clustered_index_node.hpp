@@ -14,6 +14,8 @@ public:
     void add_row_at(DataRow&& row, size_t position);
     void add_pointer(uint32_t page_pointer);
     void add_pointer_at(uint32_t page_pointer, size_t position);
+    void set_pointer_at(uint32_t page_pointer, size_t position);
+    void clear_pointers();
 
     // Set the original page (first page to write to)
     void set_original_page(uint32_t page);
@@ -22,6 +24,10 @@ public:
     void set_available_pages(const std::vector<uint32_t>& pages);
     void set_extra_available_pages(const std::vector<uint32_t>& pages);
 
+    std::vector<uint32_t> get_available_pages_index();   
+    std::optional<uint32_t> get_original_page();   
+
+    std::vector<uint32_t>& get_page_pointers();
     std::vector<DataRow>& get_items();
 
     // Serialize rows into a payload buffer
@@ -29,7 +35,7 @@ public:
 
     // Save clustered index across pages
     // Returns list of page IDs used
-    std::vector<uint32_t> save(const std::string &db_path, const TableSchema &schema, uint32_t page_size = 4096);
+    std::vector<uint32_t> save(const std::string &db_path, const TableSchema &schema, uint32_t page_size = 4096, bool save=true);
 
     bool is_leaf() const { return page_pointers_.empty(); }
 
@@ -46,3 +52,6 @@ private:
 
     uint32_t next_new_page_id_ = 0; // for allocating new pages
 };
+
+
+size_t num_pages_in_file(const std::string &path, size_t page_size);
