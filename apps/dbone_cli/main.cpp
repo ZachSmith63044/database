@@ -31,92 +31,63 @@ static bool read_page_count_and_size(const std::string &file, uint8_t &page_coun
     return !ec;
 }
 
+int make_table(uint32_t page_size)
+{
+    TableSchema s;
+    s.table_name = "orders";
+    s.columns.emplace_back(std::make_unique<BigIntColumn>("id", /*nullable=*/false, /*pk=*/true, /*uniq=*/true, /*default=*/4342596));
+    s.columns.emplace_back(std::make_unique<CharColumn>("code", 8, /*nullable=*/false, /*pk=*/false, /*uniq=*/true, /*default=*/"ABCDEFGH"));
+    s.min_length = 128;
+    std::string err;
+    bool ok = create_table(s, "C:/Users/zakha/Documents/15. Database+/store", &err, page_size);
+    if (!ok)
+    {
+        std::cerr << "create_table failed: " << err << "\n";
+        return 1;
+    }
+}
+
+void insert_table(size_t n, uint32_t page_size)
+{
+    auto start = std::chrono::high_resolution_clock::now();
+    for (size_t i = 0; i < n; i++)
+    {
+        dbone::insert::Row row1 = {
+            {"id", std::to_string(i)},
+            {"code", "Another!"}};
+
+        auto result = dbone::insert::insert(
+            "C:/Users/zakha/Documents/15. Database+/store/table.efdb",
+            row1,
+            page_size);
+
+        if (!result.ok)
+        {
+            std::cerr << "Insert failed: " << result.error << "\n";
+        }
+        else
+        {
+            // std::cout << "Insert validated successfully!\n";
+        }
+    }
+
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    std::cout << "Insert took " << duration.count() / 1000.0f << " milloseconds\n";
+}
+
 int main(int argc, char **argv)
 {
     try
     {
 
         uint32_t PAGE_SIZE_DEFAULT = 4096;
-        // std::string outPath = (argc > 1) ? argv[1] : std::string("schema_out");
 
-        // // Build a sample schema
-        TableSchema s;
-        s.table_name = "orders";
-        s.columns.emplace_back(std::make_unique<BigIntColumn>("id", /*nullable=*/false, /*pk=*/true, /*uniq=*/true, /*default=*/4342596));
-        s.columns.emplace_back(std::make_unique<CharColumn>("code", 8, /*nullable=*/false, /*pk=*/false, /*uniq=*/true, /*default=*/"ABCDEFGH"));
-        s.min_length = 128;
-        std::string err;
-        bool ok = create_table(s, "C:/Users/zakha/Documents/15. Database+/store", &err, PAGE_SIZE_DEFAULT);
-        if (!ok)
-        {
-            std::cerr << "create_table failed: " << err << "\n";
-            return 1;
-        }
+        make_table(PAGE_SIZE_DEFAULT);
 
-        // Example insert
-        auto start = std::chrono::high_resolution_clock::now();
-        for (size_t i = 0; i < 40000; i++)
-        {
-            dbone::insert::Row row1 = {
-                {"id", std::to_string(i)},
-                {"code", "Another!"}};
-
-            auto result = dbone::insert::insert(
-                "C:/Users/zakha/Documents/15. Database+/store/table.efdb",
-                row1,
-                PAGE_SIZE_DEFAULT);
-
-            if (!result.ok)
-            {
-                std::cerr << "Insert failed: " << result.error << "\n";
-            }
-            else
-            {
-                // std::cout << "Insert validated successfully!\n";
-            }
-        }
-
-        auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-        std::cout << "Insert took " << duration.count() / 1000.0f << " milloseconds\n";
-        // std::string err;
-        // bool ok = create_table(s, "C:/Users/zakha/Documents/15. Database+/store", &err, PAGE_SIZE_DEFAULT);
-        // if (!ok)
-        // {
-        //     std::cerr << "create_table failed: " << err << "\n";
-        //     return 1;
-        // }
-
-        // // Determine actual file path (if directory, writer should have created "table.efdb" in it)
-        // fs::path outp(outPath);
-        // if (fs::is_directory(outp))
-        //     outp /= "table.efdb";
-        // std::string file = outp.string();
-
-        // // Read back header info for a sanity check
-        // uint8_t page_count = 0;
-        // std::uintmax_t file_size = 0;
-        // if (!read_page_count_and_size(file, page_count, file_size))
-        // {
-        //     std::cerr << "Failed to read back page_count or file size from: " << file << "\n";
-        //     return 2;
-        // }
-
-        // std::cout << "Schema written to: " << file << "\n";
-        // std::cout << "Page size (expected): " << PAGE_SIZE_DEFAULT << " bytes\n";
-        // std::cout << "Page count (from file): " << static_cast<int>(page_count) << "\n";
-        // std::cout << "File size: " << file_size << " bytes\n";
-
-        // const std::uint64_t expected_size = static_cast<std::uint64_t>(page_count) * PAGE_SIZE_DEFAULT;
-        // if (file_size != expected_size)
-        // {
-        //     std::cerr << "WARNING: file size != page_count * PAGE_SIZE_DEFAULT ("
-        //               << file_size << " != " << expected_size << ")\n";
-        // }
-        // else
-        // {
-        //     std::cout << "OK: file size matches page_count × 4096\n";
-        // }
+        insert_table(500, PAGE_SIZE_DEFAULT);
+        
+        
 
         return 0;
     }
