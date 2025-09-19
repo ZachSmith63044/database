@@ -30,7 +30,6 @@ ClusteredIndexNode ClusteredIndexNode::load(const std::string &db_path, uint32_t
     {
         throw std::runtime_error("Couldn't read offset");
     }
-
     // --- read root page ---
     std::vector<uint8_t> root(page_size);
     in.read(reinterpret_cast<char *>(root.data()), root.size());
@@ -49,7 +48,6 @@ ClusteredIndexNode ClusteredIndexNode::load(const std::string &db_path, uint32_t
         uint32_t pg = readU32(root, off);
         page_list.push_back(pg);
     }
-
     // --- assemble full payload ---
     // header size = 4 + (page_count-1)*4
     size_t header_size = 4u + 4u * (page_count > 0 ? (page_count) : 0);
@@ -103,6 +101,7 @@ ClusteredIndexNode ClusteredIndexNode::load(const std::string &db_path, uint32_t
         clusteredIndexNode.add_row(std::move(row));
         clusteredIndexNode.add_pointer(readU32(full_payload, ref));
     }
+    
     return clusteredIndexNode;
 }
 

@@ -296,6 +296,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\zakha\Documents\15. Database+\dbone\src\clustered_index_node.cpp" />
     <ClCompile Include="C:\Users\zakha\Documents\15. Database+\dbone\src\availablePages.cpp" />
     <ClCompile Include="C:\Users\zakha\Documents\15. Database+\dbone\src\insert.cpp" />
+    <ClCompile Include="C:\Users\zakha\Documents\15. Database+\dbone\src\search.cpp" />
     <ClCompile Include="C:\Users\zakha\Documents\15. Database+\dbone\src\serialize.cpp" />
     <ClCompile Include="C:\Users\zakha\Documents\15. Database+\dbone\src\columns\column.cpp" />
     <ClCompile Include="C:\Users\zakha\Documents\15. Database+\dbone\src\columns\dataTypes.cpp" />

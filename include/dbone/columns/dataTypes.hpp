@@ -3,16 +3,22 @@
 #include <cstdint>
 #include <memory>
 #include "dbone/bitbuffer.hpp"
+#include <ostream>
 
 class DataType {
 public:
     virtual ~DataType() = default;
+
+    // --- Serialization ---
     virtual void to_bits(BitBuffer &buf) const = 0;
     virtual std::string default_value_str() const = 0;
 
     // --- Virtual comparators ---
     virtual bool equals(const DataType& other) const = 0;
     virtual bool less(const DataType& other) const = 0;
+
+    // --- Clone support ---
+    virtual std::unique_ptr<DataType> clone() const = 0;
 
     // Convenience wrappers
     bool operator==(const DataType& other) const { return equals(other); }
@@ -40,6 +46,11 @@ public:
     bool equals(const DataType& other) const override;
     bool less(const DataType& other) const override;
 
+    // --- Clone ---
+    std::unique_ptr<DataType> clone() const override {
+        return std::make_unique<BigIntType>(*this);
+    }
+
 private:
     int64_t value_;
 };
@@ -60,6 +71,11 @@ public:
     // Implement virtual comparison
     bool equals(const DataType& other) const override;
     bool less(const DataType& other) const override;
+
+    // --- Clone ---
+    std::unique_ptr<DataType> clone() const override {
+        return std::make_unique<CharType>(*this);
+    }
 
 private:
     std::string value_;

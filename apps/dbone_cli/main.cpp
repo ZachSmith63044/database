@@ -8,9 +8,11 @@
 #include <cstdint>
 #include "dbone/columns/column.hpp"
 #include "dbone/insert.hpp"
+#include "dbone/search.hpp"
 #include <memory>
 #include <iostream>
 #include <chrono>
+#include <unordered_set>
 
 namespace fs = std::filesystem;
 
@@ -35,8 +37,8 @@ int make_table(uint32_t page_size)
 {
     TableSchema s;
     s.table_name = "orders";
-    s.columns.emplace_back(std::make_unique<BigIntColumn>("id", /*nullable=*/false, /*pk=*/true, /*uniq=*/true, /*default=*/4342596));
-    s.columns.emplace_back(std::make_unique<CharColumn>("code", 8, /*nullable=*/false, /*pk=*/false, /*uniq=*/true, /*default=*/"ABCDEFGH"));
+    s.columns.emplace_back(std::make_unique<BigIntColumn>("id", /*nullable=*/false, /*pk=*/false, /*uniq=*/true, /*default=*/4342596));
+    s.columns.emplace_back(std::make_unique<CharColumn>("code", 8, /*nullable=*/false, /*pk=*/true, /*uniq=*/true, /*default=*/"ABCDEFGH"));
     s.min_length = 128;
     std::string err;
     bool ok = create_table(s, "C:/Users/zakha/Documents/15. Database+/store", &err, page_size);
@@ -47,6 +49,13 @@ int make_table(uint32_t page_size)
     }
 }
 
+std::string make_code(size_t id)
+{
+    std::ostringstream oss;
+    oss << "C" << std::setw(7) << std::setfill('0') << id;
+    return oss.str();
+}
+
 void insert_table(size_t n, uint32_t page_size)
 {
     auto start = std::chrono::high_resolution_clock::now();
@@ -54,7 +63,7 @@ void insert_table(size_t n, uint32_t page_size)
     {
         dbone::insert::Row row1 = {
             {"id", std::to_string(i)},
-            {"code", "Another!"}};
+            {"code", make_code(i)}};
 
         auto result = dbone::insert::insert(
             "C:/Users/zakha/Documents/15. Database+/store/table.efdb",
@@ -78,22 +87,76 @@ void insert_table(size_t n, uint32_t page_size)
 
 int main(int argc, char **argv)
 {
-    try
+
+    uint32_t PAGE_SIZE_DEFAULT = 4096;
+
+    // make_table(PAGE_SIZE_DEFAULT);
+
+    // insert_table(40000, PAGE_SIZE_DEFAULT);
+
+    std::vector<std::unique_ptr<DataType>> primaryKeys;
+
+    primaryKeys.push_back(std::make_unique<CharType>("C0000007", 8));
+    primaryKeys.push_back(std::make_unique<CharType>("C0000284", 8));
+    primaryKeys.push_back(std::make_unique<CharType>("C0000389", 8));
+    primaryKeys.push_back(std::make_unique<CharType>("C0008392", 8));
+    primaryKeys.push_back(std::make_unique<CharType>("C0027931", 8));
+    primaryKeys.push_back(std::make_unique<CharType>("C0028931", 8));
+    primaryKeys.push_back(std::make_unique<CharType>("C0029931", 8));
+    primaryKeys.push_back(std::make_unique<CharType>("C0035931", 8));
+    primaryKeys.push_back(std::make_unique<CharType>("C0036031", 8));
+    primaryKeys.push_back(std::make_unique<CharType>("C0036231", 8));
+    primaryKeys.push_back(std::make_unique<CharType>("C0036431", 8));
+    primaryKeys.push_back(std::make_unique<CharType>("C0036631", 8));
+    primaryKeys.push_back(std::make_unique<CharType>("C0037831", 8));
+    primaryKeys.push_back(std::make_unique<CharType>("C0038031", 8));
+    SearchResult result = dbone::search::searchPrimaryKeys("C:/Users/zakha/Documents/15. Database+/store/table.efdb", primaryKeys, PAGE_SIZE_DEFAULT);
+
+    for (dbone::insert::Row row : result.rows)
     {
-
-        uint32_t PAGE_SIZE_DEFAULT = 4096;
-
-        make_table(PAGE_SIZE_DEFAULT);
-
-        insert_table(500, PAGE_SIZE_DEFAULT);
-        
-        
-
-        return 0;
+        std::cout << "{ ";
+        for (const auto &[key, value] : row)
+        {
+            std::cout << key << ": " << value << ", ";
+        }
+        std::cout << "}" << std::endl;
     }
-    catch (const std::exception &ex)
-    {
-        std::cerr << "Exception: " << ex.what() << "\n";
-        return 3;
-    }
+
+    // std::cout << "BEFORE" << std::endl;
+    // SearchParam param;
+    // param.columnName = "id";
+    // param.comparator = Comparator::Less;
+    // param.compareTo = std::make_unique<BigIntType>(40000);
+    // std::vector<SearchParam> params;
+    // params.push_back(std::move(param));
+    // SearchResult result = dbone::search::searchItem("C:/Users/zakha/Documents/15. Database+/store/table.efdb", params, PAGE_SIZE_DEFAULT);
+    // std::cout << result.rows.size() << std::endl;
+    // for (dbone::insert::Row row : result.rows)
+    // {
+    //     std::cout << "{ ";
+    //     for (const auto &[key, value] : row)
+    //     {
+    //         std::cout << key << ": " << value << ", ";
+    //     }
+    //     std::cout << "}" << std::endl;
+    // }
+    // Collect all IDs that exist (stored as strings)
+    // std::unordered_set<std::string> presentIds;
+    // for (const dbone::insert::Row& row : result.rows) {
+    //     auto it = row.find("id");
+    //     if (it != row.end()) {
+    //         presentIds.insert(it->second);
+    //     }
+    // }
+
+    // // Now print missing IDs
+    // for (int i = 0; i < 40000; ++i) {
+    //     std::string idStr = std::to_string(i);
+    //     if (presentIds.find(idStr) == presentIds.end()) {
+    //         std::cout << i << "\n";
+    //     }
+    // }
+    std::cout << result.timeTaken << std::endl;
+
+    return 0;
 }
