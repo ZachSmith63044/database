@@ -379,20 +379,29 @@ namespace dbone::insert
         else
         {
             std::unique_ptr<DataType> indexedValue = indexed_col.parse(row.at(indexed_col.name()));
+            bool adding = false;
             for (size_t i = 0; i < entries.size(); i++)
             {
-                if (entries[i].value > indexedValue)
+
+                if (*(entries[i].value) > *(indexedValue))
                 {
+                    std::cout << "Value: " << entries[i].value.get()->default_value_str() << std::endl;
+                    std::cout << "Value2: " << indexedValue.get()->default_value_str() << std::endl;
                     if (secondaryIndexNode.page_pointers()[0] == static_cast<uint32_t>(0))
                     {
                         IndexEntry indexEntry;
                         indexEntry.value = indexed_col.parse(row.at(indexed_col.name()));
                         indexEntry.primary_keys.push_back(pk_col.parse(row.at(pk_col.name())));
                         secondaryIndexNode.add_entry_at(std::move(indexEntry), i);
+                        adding = true;
+                        std::cout << "THIS PATH" << std::endl;
+                        break;
                     }
                     else
                     {
-                        return insertIntoIndex(db_path, secondaryIndexNode.page_pointers()[i], row, page_size, schema, indexed_col, pk_col, page_num);
+                        std::cout << "ERROR" << std::endl;
+                        adding = true;
+                        // return insertIntoIndex(db_path, secondaryIndexNode.page_pointers()[i], row, page_size, schema, indexed_col, pk_col, page_num);
                     }
                 }
                 else if (entries[i].value == indexedValue)
@@ -412,7 +421,18 @@ namespace dbone::insert
                     {
                         indexEntry.primary_keys.push_back(std::move(pkValue));
                     }
+                    adding = true;
+                    break;
                 }
+            }
+            if (!adding)
+            {
+                IndexEntry indexEntry;
+                indexEntry.value = indexed_col.parse(row.at(indexed_col.name()));
+                indexEntry.primary_keys.push_back(pk_col.parse(row.at(pk_col.name())));
+                secondaryIndexNode.add_entry(std::move(indexEntry));
+                secondaryIndexNode.add_pointer(0);
+                std::cout << "NOT ADDED" << std::endl;
             }
         }
 
