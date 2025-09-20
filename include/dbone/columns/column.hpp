@@ -17,6 +17,7 @@ public:
            bool nullable,
            bool primaryKey,
            bool unique,
+           bool indexed, //
            std::unique_ptr<DataType> defaultVal);
 
     virtual ~Column() = default;
@@ -26,6 +27,7 @@ public:
           nullable_(other.nullable_),
           primaryKey_(other.primaryKey_),
           unique_(other.unique_),
+          indexed_(other.indexed_),
           defaultVal_(other.defaultVal_ ? other.defaultVal_->clone() : nullptr) {}
 
     // --- Copy assignment (deep copy) ---
@@ -37,6 +39,7 @@ public:
             nullable_ = other.nullable_;
             primaryKey_ = other.primaryKey_;
             unique_ = other.unique_;
+            indexed_ = other.indexed_;
             defaultVal_ = other.defaultVal_ ? other.defaultVal_->clone() : nullptr;
         }
         return *this;
@@ -65,12 +68,14 @@ public:
     bool nullable() const { return nullable_; }
     bool primaryKey() const { return primaryKey_; }
     bool unique() const { return unique_; }
+    bool indexed() const { return indexed_; }
 
 protected:
     std::string name_;
     bool nullable_;
     bool primaryKey_;
     bool unique_;
+    bool indexed_;
     std::unique_ptr<DataType> defaultVal_;
 };
 
@@ -82,6 +87,7 @@ public:
                  bool nullable,
                  bool primaryKey,
                  bool unique,
+                 bool indexed,
                  int64_t defaultVal);
 
     void to_bits(BitBuffer &buf) const override;
@@ -105,6 +111,7 @@ public:
                bool nullable,
                bool primaryKey,
                bool unique,
+               bool indexed,
                std::string defaultVal);
 
     void to_bits(BitBuffer &buf) const override;

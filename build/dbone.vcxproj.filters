@@ -19,6 +19,9 @@
     <ClCompile Include="C:\Users\zakha\Documents\15. Database+\dbone\src\clustered_index_node.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\zakha\Documents\15. Database+\dbone\src\secondary_index_node.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="C:\Users\zakha\Documents\15. Database+\dbone\src\availablePages.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

@@ -4,6 +4,7 @@ C:\Users\zakha\Documents\15. Database+\dbone\src\storage.cpp;C:\Users\zakha\Docu
 C:\Users\zakha\Documents\15. Database+\dbone\src\index.cpp;C:\Users\zakha\Documents\15. Database+\dbone\build\dbone.dir\Debug\index.obj
 C:\Users\zakha\Documents\15. Database+\dbone\src\row.cpp;C:\Users\zakha\Documents\15. Database+\dbone\build\dbone.dir\Debug\row.obj
 C:\Users\zakha\Documents\15. Database+\dbone\src\clustered_index_node.cpp;C:\Users\zakha\Documents\15. Database+\dbone\build\dbone.dir\Debug\clustered_index_node.obj
+C:\Users\zakha\Documents\15. Database+\dbone\src\secondary_index_node.cpp;C:\Users\zakha\Documents\15. Database+\dbone\build\dbone.dir\Debug\secondary_index_node.obj
 C:\Users\zakha\Documents\15. Database+\dbone\src\availablePages.cpp;C:\Users\zakha\Documents\15. Database+\dbone\build\dbone.dir\Debug\availablePages.obj
 C:\Users\zakha\Documents\15. Database+\dbone\src\insert.cpp;C:\Users\zakha\Documents\15. Database+\dbone\build\dbone.dir\Debug\insert.obj
 C:\Users\zakha\Documents\15. Database+\dbone\src\search.cpp;C:\Users\zakha\Documents\15. Database+\dbone\build\dbone.dir\Debug\search.obj

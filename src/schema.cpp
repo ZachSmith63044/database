@@ -58,6 +58,7 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
 
     // page_count (1 byte)
     uint8_t page_count = readU8(page, off);
+    std::cout << "page: " << static_cast<int>(page_count) << std::endl;
 
     // page list
     std::vector<uint32_t> page_list;
@@ -66,6 +67,8 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
         uint32_t pg = readU32(page, off);
         page_list.push_back(pg);
     }
+
+    std::cout << "PAGE LIST" << std::endl;
 
     // --- Step 2: figure out payload bytes inside page 0
     uint64_t header_size = 1ull + 4ull * (page_count - 1);
@@ -90,6 +93,8 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
         schema_payload.insert(schema_payload.end(), buf.begin(), buf.end());
     }
 
+    std::cout << "STEP 4" << std::endl;
+
     // --- Step 4: parse schema_payload
     off = 0;
     uint32_t data_root_page = readU32(schema_payload, off);
@@ -110,6 +115,10 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
     schema.clustered_page_ref = data_root_page;
     schema.available_pages_ref = available_pages;
 
+    std::cout << "STEP 5" << std::endl;
+    
+    std::vector<size_t> indexColumns;
+
     for (uint16_t i = 0; i < col_count; ++i)
     {
         // dump_bytes(schema_payload, off, 16, "before col_name");
@@ -120,7 +129,13 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
         bool nullable = (packed & (1u << 7)) != 0;
         bool primaryKey = (packed & (1u << 6)) != 0;
         bool unique = (packed & (1u << 5)) != 0;
-        uint8_t type_id = packed & 0x1F;
+
+        bool indexed = (packed & (1u << 4)) != 0;
+        if (indexed)
+        {
+            indexColumns.push_back(i);
+        }
+        uint8_t type_id = packed & 0x0F;
 
         if (type_id == 1)
         { // BIGINT
@@ -134,7 +149,7 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
             }
             off += 8;
             schema.columns.emplace_back(
-                std::make_unique<BigIntColumn>(col_name, nullable, primaryKey, unique, def));
+                std::make_unique<BigIntColumn>(col_name, nullable, primaryKey, unique, indexed, def));
         }
         else if (type_id == 2)
         { // CHAR(N)
@@ -145,7 +160,7 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
             std::string def(reinterpret_cast<const char *>(&schema_payload[off]), len);
             off += len;
             schema.columns.emplace_back(
-                std::make_unique<CharColumn>(col_name, len, nullable, primaryKey, unique, def));
+                std::make_unique<CharColumn>(col_name, len, nullable, primaryKey, unique, indexed, def));
         }
         else
         {
@@ -153,6 +168,11 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
         }
     }
     schema.min_length = readU32(schema_payload, off);
+
+    for (size_t i = 0; i < indexColumns.size(); i++)
+    {
+        schema.index_page_refs[indexColumns[i]] = readU32(schema_payload, off);
+    }
 
     return schema;
 }
@@ -199,6 +219,16 @@ bool create_table(const TableSchema &s,
         }
     }
 
+    // COUNT NUMBER OF INDEXES
+    size_t numberOfIndexes = 0;
+    for (size_t i = 0; i < s.columns.size(); i++)
+    {
+        if (s.columns[i].get()->indexed())
+        {
+            numberOfIndexes++;
+        }
+    }
+
     // --- 1) Serialize schema into bit buffer
     LOG("serialize schema: table='%s', cols=%zu", s.table_name.c_str(), s.columns.size());
 
@@ -226,9 +256,9 @@ bool create_table(const TableSchema &s,
     LOG("schema_body size=%zu bytes", schema_body.size());
 
     // --- 2) Compute how many pages are required
-    auto capacity_for_pages = [page_size](uint32_t N) -> int64_t
+    auto capacity_for_pages = [page_size](uint32_t N, uint32_t numberOfIndexes) -> int64_t
     {
-        int64_t header = 1 + 4LL * (N > 0 ? (N - 1) : 0);
+        int64_t header = 1 + 4LL * (N > 0 ? (N - 1) : 0) + 8 + 4 * numberOfIndexes;
         if (header > page_size)
             return -1;
         return static_cast<int64_t>(N) * page_size - header;
@@ -237,7 +267,7 @@ bool create_table(const TableSchema &s,
     uint32_t page_count = 1;
     while (true)
     {
-        int64_t cap = capacity_for_pages(page_count);
+        int64_t cap = capacity_for_pages(page_count, numberOfIndexes);
         LOG("try page_count=%u -> capacity=%lld", page_count, (long long)cap);
         if (cap < 0)
         {
@@ -261,7 +291,7 @@ bool create_table(const TableSchema &s,
 
     const uint32_t data_root_page = page_count;
     const uint32_t empty_pages_page = page_count + 1;
-    const uint32_t total_pages = page_count + 1 + 1;
+    const uint32_t total_pages = page_count + 3 + numberOfIndexes;
     LOG("decided: schema pages=%u, data_root_page=%u, total_pages=%u",
         page_count, data_root_page, total_pages);
 
@@ -282,6 +312,20 @@ bool create_table(const TableSchema &s,
     payload.push_back(uint8_t((empty_pages_page >> 24) & 0xFF));
 
     payload.insert(payload.end(), schema_body.begin(), schema_body.end());
+
+    size_t covered = 0;
+    for (size_t i = 0; i < s.columns.size(); i++)
+    {
+        if (s.columns[i].get()->indexed())
+        {
+            payload.push_back(uint8_t((page_count + 2 + covered) & 0xFF));
+            payload.push_back(uint8_t(((page_count + 2 + covered) >> 8) & 0xFF));
+            payload.push_back(uint8_t(((page_count + 2 + covered) >> 16) & 0xFF));
+            payload.push_back(uint8_t(((page_count + 2 + covered) >> 24) & 0xFF));
+            covered++;
+        }
+    }
+
     const uint64_t payload_size = payload.size();
     LOG("payload size=%llu bytes", (unsigned long long)payload_size);
 

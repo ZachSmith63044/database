@@ -8,16 +8,19 @@ SearchResult searchMultiPrimaryKeys(
     uint32_t currentPage,
     std::vector<std::unique_ptr<DataType>> &primaryKeys,
     uint32_t page_size,
-    size_t &offset
-) {
+    size_t &offset)
+{
     size_t primaryColumnIndex = static_cast<size_t>(-1);
-    for (size_t i = 0; i < schema.columns.size(); i++) {
-        if (schema.columns[i]->primaryKey()) {
+    for (size_t i = 0; i < schema.columns.size(); i++)
+    {
+        if (schema.columns[i]->primaryKey())
+        {
             primaryColumnIndex = i;
             break;
         }
     }
-    if (primaryColumnIndex == static_cast<size_t>(-1)) {
+    if (primaryColumnIndex == static_cast<size_t>(-1))
+    {
         throw std::runtime_error("Can't find primary column index. [searchPrimaryKeys]");
     }
 
@@ -28,39 +31,47 @@ SearchResult searchMultiPrimaryKeys(
 
     SearchResult searchResult;
 
-    if (offset >= primaryKeys.size()) {
+    if (offset >= primaryKeys.size())
+    {
         return searchResult; // done already
     }
 
-    for (size_t i = 0; i < items.size() && offset < primaryKeys.size(); i++) {
+    for (size_t i = 0; i < items.size() && offset < primaryKeys.size(); i++)
+    {
         const DataType &val = items[i].get(primaryColumnIndex);
         const DataType &target = *primaryKeys[offset];
 
-        if (val > target) {
-            if (pagePointers[i] != 0) {
+        if (val > target)
+        {
+            if (pagePointers[i] != 0)
+            {
                 SearchResult result =
                     searchMultiPrimaryKeys(db_path, schema, pagePointers[i],
                                            primaryKeys, page_size, offset);
                 searchResult.rows.insert(searchResult.rows.end(),
                                          std::make_move_iterator(result.rows.begin()),
                                          std::make_move_iterator(result.rows.end()));
-                if (offset >= primaryKeys.size()) {
+                if (offset >= primaryKeys.size())
+                {
                     return searchResult; // ✅ safe exit
                 }
             }
         }
 
-        if (offset < primaryKeys.size() && val == *primaryKeys[offset]) {
+        if (offset < primaryKeys.size() && val == *primaryKeys[offset])
+        {
             searchResult.rows.push_back(items[i].toRow(schema));
             offset++;
-            if (offset == primaryKeys.size()) {
+            if (offset == primaryKeys.size())
+            {
                 return searchResult; // ✅ stop when all found
             }
         }
     }
 
     // recurse into rightmost child if still have keys
-    if (offset < primaryKeys.size() && pagePointers[items.size()] != 0) {
+    if (offset < primaryKeys.size() && pagePointers[items.size()] != 0)
+    {
         SearchResult result =
             searchMultiPrimaryKeys(db_path, schema, pagePointers[items.size()],
                                    primaryKeys, page_size, offset);
@@ -72,7 +83,6 @@ SearchResult searchMultiPrimaryKeys(
     return searchResult;
 }
 
-
 SearchResult dbone::search::searchPrimaryKeys(const std::string &db_path, std::vector<std::unique_ptr<DataType>> &primaryKeys, uint32_t page_size)
 {
     auto start = std::chrono::high_resolution_clock::now();
@@ -83,7 +93,6 @@ SearchResult dbone::search::searchPrimaryKeys(const std::string &db_path, std::v
     size_t offset = 0;
     std::cout << "SCHEMA + RUN" << std::endl;
     SearchResult result = searchMultiPrimaryKeys(db_path, schema, *schema.clustered_page_ref, primaryKeys, page_size, offset);
-    
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -331,7 +340,16 @@ SearchResult dbone::search::searchItem(const std::string &db_path, const std::ve
                 paramCopy.comparator = searchParam.comparator;
                 paramCopy.compareTo = searchParam.compareTo->clone();
 
-                SearchResult result = searchNonIndexed(db_path, schema, *schema.clustered_page_ref, paramCopy, page_size);
+                SearchResult result;
+
+                if (schema.index_page_refs.find(*paramCopy.columnIndex) == schema.index_page_refs.end())
+                {
+                    result = searchNonIndexed(db_path, schema, *schema.clustered_page_ref, paramCopy, page_size);
+                }
+                else
+                {
+                    std::cout << "SEARCHING INDEXED" << std::endl;
+                }
 
                 auto end = std::chrono::high_resolution_clock::now();
                 auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);

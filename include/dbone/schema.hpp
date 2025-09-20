@@ -4,6 +4,7 @@
 #include <vector>
 #include <optional>
 #include "dbone/columns/column.hpp"
+#include <unordered_map>
 
 // Only declare create_table here
 struct TableSchema {
@@ -22,6 +23,7 @@ struct TableSchema {
     uint32_t min_length{};
     std::optional<uint32_t> clustered_page_ref;
     std::optional<uint32_t> available_pages_ref;
+    std::unordered_map<size_t, uint32_t> index_page_refs{};
 };
 
 

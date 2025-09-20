@@ -8,6 +8,7 @@
 #include <fstream>
 #include <vector>
 #include <iomanip>
+#include <dbone/secondary_index_node.hpp>
 
 struct InsertIntoResult
 {
@@ -190,7 +191,7 @@ namespace dbone::insert
                 clusteredIndexNode.add_pointer(page2);
             }
         }
-        
+
         std::cout << "CLUSTER SAVE: " << page_num << std::endl;
         std::cout << *clusteredIndexNode.get_original_page() << std::endl;
         clusteredIndexNode.save(db_path, schema, page_size);
@@ -285,8 +286,8 @@ namespace dbone::insert
                 bool pointer = split_node(previous_page_ref, clusteredIndexNode, schema, db_path, page_size);
             }
             std::cout << "SHOULD INSERT" << std::endl;
-            insertInto(db_path, *schema.clustered_page_ref, row, page_size, schema);
-            return false;
+            return insertInto(db_path, *schema.clustered_page_ref, row, page_size, schema);
+            // return false;
             // insertInto(db_path, pointer, row, page_size, schema);
         }
 
@@ -345,18 +346,115 @@ namespace dbone::insert
         return true;
     }
 
+    bool insertIntoIndex(const std::string &db_path, uint32_t page_num, const Row &row, uint32_t page_size, const TableSchema &schema, const Column &indexed_col, const Column &pk_col, uint32_t previous_page_ref = 0)
+    {
+        SecondaryIndexNode secondaryIndexNode = SecondaryIndexNode::load(db_path, page_num, schema, indexed_col, pk_col, page_size);
+
+        std::vector<IndexEntry> entries = secondaryIndexNode.entries();
+
+        std::cout << "Length: " << entries.size() << std::endl;
+        std::cout << "Pointers length: " << secondaryIndexNode.page_pointers().size() << std::endl;
+
+        if (secondaryIndexNode.entries().size() >= schema.min_length * 2 + 1)
+        {
+            if (previous_page_ref == 0)
+            {
+                std::cout << "SPLIT ROOT" << std::endl;
+            }
+            else
+            {
+
+                std::cout << "SPLIT NODE" << std::endl;
+            }
+        }
+
+        if (secondaryIndexNode.entries().size() == 0)
+        {
+            IndexEntry indexEntry;
+            indexEntry.value = indexed_col.parse(row.at(indexed_col.name()));
+            indexEntry.primary_keys.push_back(pk_col.parse(row.at(pk_col.name())));
+            secondaryIndexNode.add_entry(std::move(indexEntry));
+            secondaryIndexNode.add_pointer(0);
+        }
+        else
+        {
+            std::unique_ptr<DataType> indexedValue = indexed_col.parse(row.at(indexed_col.name()));
+            for (size_t i = 0; i < entries.size(); i++)
+            {
+                if (entries[i].value > indexedValue)
+                {
+                    if (secondaryIndexNode.page_pointers()[0] == static_cast<uint32_t>(0))
+                    {
+                        IndexEntry indexEntry;
+                        indexEntry.value = indexed_col.parse(row.at(indexed_col.name()));
+                        indexEntry.primary_keys.push_back(pk_col.parse(row.at(pk_col.name())));
+                        secondaryIndexNode.add_entry_at(std::move(indexEntry), i);
+                    }
+                    else
+                    {
+                        return insertIntoIndex(db_path, secondaryIndexNode.page_pointers()[i], row, page_size, schema, indexed_col, pk_col, page_num);
+                    }
+                }
+                else if (entries[i].value == indexedValue)
+                {
+                    IndexEntry indexEntry = entries[i];
+                    std::unique_ptr<DataType> pkValue = pk_col.parse(row.at(pk_col.name()));
+                    bool added = false;
+                    for (size_t i = 0; i < indexEntry.primary_keys.size(); i++)
+                    {
+                        if (indexEntry.primary_keys[i] < pkValue)
+                        {
+                            indexEntry.primary_keys.insert(indexEntry.primary_keys.begin() + i, std::move(pkValue));
+                            added = true;
+                        }
+                    }
+                    if (!added)
+                    {
+                        indexEntry.primary_keys.push_back(std::move(pkValue));
+                    }
+                }
+            }
+        }
+
+        secondaryIndexNode.save(db_path, schema, page_size);
+
+        return false;
+    }
+
     ValidationResult insert(const std::string &db_path, const Row &row, uint32_t page_size)
     {
         std::string err;
-        TableSchema schema(read_schema(db_path, page_size));
+        std::cout << "INSERT?" << std::endl;
+        TableSchema schema = read_schema(db_path, page_size);
         if (!err.empty())
         {
             return {false, "Failed to load schema: " + err};
         }
 
+        std::cout << "PRE VALID" << std::endl;
+
         ValidationResult validationResult = validate_row(schema, row);
 
-        bool returnVal = insertInto(db_path, *schema.clustered_page_ref, row, page_size, schema);
+        std::cout << "VALIDATED" << std::endl;
+
+        insertInto(db_path, *schema.clustered_page_ref, row, page_size, schema);
+
+        Column *pk_col = nullptr;
+        for (size_t i = 0; i < schema.columns.size(); i++)
+        {
+            if (schema.columns[i]->primaryKey())
+            {
+                pk_col = schema.columns[i].get(); // raw pointer to the column
+                break;
+            }
+        }
+
+        for (const auto &[colIndex, pageRef] : schema.index_page_refs)
+        {
+            insertIntoIndex(db_path, pageRef, row, page_size, schema, *schema.columns[colIndex], *pk_col);
+        }
+
+        schema.index_page_refs;
 
         return validationResult;
     }

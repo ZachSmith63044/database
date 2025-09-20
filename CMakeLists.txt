@@ -18,6 +18,7 @@ add_library(dbone
   src/index.cpp
   src/row.cpp
   src/clustered_index_node.cpp
+  src/secondary_index_node.cpp
   src/availablePages.cpp
   src/insert.cpp
   src/search.cpp
