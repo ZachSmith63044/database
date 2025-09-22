@@ -68,6 +68,7 @@ public:
     void add_pointer(uint32_t p) { page_pointers_.push_back(p); }
     void add_pointer_at(uint32_t p, size_t pos);
     void set_pointer_at(uint32_t p, size_t pos);
+    void clear_pointers();
 
     void set_original_page(uint32_t page);
     std::optional<uint32_t> original_page() const { return original_page_; }

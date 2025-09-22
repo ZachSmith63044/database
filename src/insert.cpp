@@ -63,7 +63,6 @@ namespace dbone::insert
 
     uint32_t split_root(uint32_t current_page_ref, ClusteredIndexNode &originalNode, const TableSchema &schema, const std::string &db_path, uint32_t page_size)
     {
-        std::cout << "1" << std::endl;
         std::vector<uint32_t> otherAvailablePages = originalNode.get_available_pages_index();
 
         ClusteredIndexNode newRoot;
@@ -73,9 +72,7 @@ namespace dbone::insert
         newRoot.set_original_page(*originalNode.get_original_page());
         newRoot.set_available_pages(otherAvailablePages);
 
-        std::cout << "2" << std::endl;
         std::vector<uint32_t> pagesUsed = newRoot.save(db_path, schema, page_size, false);
-        std::cout << "2.5" << std::endl;
         for (uint32_t page : pagesUsed)
         {
             otherAvailablePages.erase(
@@ -85,7 +82,6 @@ namespace dbone::insert
 
         // newRoot.set_original_page(originalNode.get_original_page());
 
-        std::cout << "3" << std::endl;
         ClusteredIndexNode page1;
         ClusteredIndexNode page2;
         for (int i = 0; i < schema.min_length; i++)
@@ -98,7 +94,6 @@ namespace dbone::insert
         page1.add_pointer(originalNode.get_page_pointers()[schema.min_length]);
         page2.add_pointer(originalNode.get_page_pointers()[schema.min_length * 2]);
 
-        std::cout << "4" << std::endl;
 
         uint32_t page1Ptr;
         if (otherAvailablePages.size() > 0)
@@ -120,7 +115,6 @@ namespace dbone::insert
                 otherAvailablePages.end());
         }
 
-        std::cout << "5" << std::endl;
         uint32_t page2Ptr;
         if (otherAvailablePages.size() > 0)
         {
@@ -135,14 +129,10 @@ namespace dbone::insert
         page2.set_available_pages(otherAvailablePages);
         std::vector<uint32_t> pagesUsed2 = page2.save(db_path, schema, page_size);
 
-        std::cout << "6" << std::endl;
         newRoot.clear_pointers();
         newRoot.add_pointer(page1Ptr);
         newRoot.add_pointer(page2Ptr);
         newRoot.save(db_path, schema, page_size);
-
-        std::cout << page1.get_items().size() << std::endl;
-        std::cout << page2.get_items().size() << std::endl;
 
         return current_page_ref;
     }
@@ -156,7 +146,6 @@ namespace dbone::insert
             throw std::runtime_error("INSERT FAILED - FORCE INSERT BREAKS BOUNDS");
         }
         DataRow &&dataRow = std::move(row);
-        std::cout << "WE GET HERE?" << std::endl;
         if (clusteredIndexNode.get_items().size() == 0)
         {
             clusteredIndexNode.add_row(std::move(dataRow));
@@ -192,8 +181,6 @@ namespace dbone::insert
             }
         }
 
-        std::cout << "CLUSTER SAVE: " << page_num << std::endl;
-        std::cout << *clusteredIndexNode.get_original_page() << std::endl;
         clusteredIndexNode.save(db_path, schema, page_size);
 
         return true;
@@ -201,16 +188,11 @@ namespace dbone::insert
 
     bool split_node(uint32_t above_page_ref, ClusteredIndexNode &originalNode, const TableSchema &schema, const std::string &db_path, uint32_t page_size)
     {
-        std::cout << "1" << std::endl;
-
         std::vector<uint32_t> otherAvailablePages = originalNode.get_available_pages_index();
         otherAvailablePages.insert(otherAvailablePages.begin(), *originalNode.get_original_page());
 
         DataRow &&rowPush = std::move(originalNode.get_items()[schema.min_length]);
 
-        // newRoot.set_original_page(originalNode.get_original_page());
-
-        std::cout << "3" << std::endl;
         ClusteredIndexNode page1;
         ClusteredIndexNode page2;
         for (int i = 0; i < schema.min_length; i++)
@@ -222,8 +204,6 @@ namespace dbone::insert
         }
         page1.add_pointer(originalNode.get_page_pointers()[schema.min_length]);
         page2.add_pointer(originalNode.get_page_pointers()[schema.min_length * 2]);
-
-        std::cout << "4" << std::endl;
 
         uint32_t page1Ptr;
         if (otherAvailablePages.size() > 0)
@@ -245,7 +225,6 @@ namespace dbone::insert
                 otherAvailablePages.end());
         }
 
-        std::cout << "5" << std::endl;
         uint32_t page2Ptr;
         if (otherAvailablePages.size() > 0)
         {
@@ -260,12 +239,8 @@ namespace dbone::insert
         page2.set_available_pages(otherAvailablePages);
         std::vector<uint32_t> pagesUsed2 = page2.save(db_path, schema, page_size);
 
-        std::cout << "6" << std::endl;
 
         insert_data_row(db_path, above_page_ref, std::move(rowPush), page1Ptr, page2Ptr, page_size, schema);
-
-        std::cout << page1.get_items().size() << std::endl;
-        std::cout << page2.get_items().size() << std::endl;
 
         return true;
     }
@@ -276,7 +251,6 @@ namespace dbone::insert
 
         if (clusteredIndexNode.get_items().size() >= schema.min_length * 2 + 1)
         {
-            std::cout << "SPLIT NODE" << std::endl;
             if (previous_page_ref == 0)
             {
                 uint32_t pointer = split_root(*clusteredIndexNode.get_original_page(), clusteredIndexNode, schema, db_path, page_size);
@@ -285,7 +259,6 @@ namespace dbone::insert
             {
                 bool pointer = split_node(previous_page_ref, clusteredIndexNode, schema, db_path, page_size);
             }
-            std::cout << "SHOULD INSERT" << std::endl;
             return insertInto(db_path, *schema.clustered_page_ref, row, page_size, schema);
             // return false;
             // insertInto(db_path, pointer, row, page_size, schema);
@@ -346,25 +319,186 @@ namespace dbone::insert
         return true;
     }
 
+    uint32_t split_secondary_root(uint32_t current_page_ref, SecondaryIndexNode &originalNode, const TableSchema &schema, const std::string &db_path, uint32_t page_size)
+    {
+        std::vector<uint32_t> otherAvailablePages = originalNode.get_available_pages_index();
+
+        SecondaryIndexNode newRoot;
+        newRoot.add_entry(std::move(originalNode.entries()[schema.min_length]));
+        newRoot.add_pointer(0);
+        newRoot.add_pointer(0);
+        newRoot.set_original_page(*originalNode.original_page());
+        newRoot.set_available_pages(otherAvailablePages);
+
+        std::vector<uint32_t> pagesUsed = newRoot.save(db_path, schema, page_size, false);
+        for (uint32_t page : pagesUsed)
+        {
+            otherAvailablePages.erase(
+                std::remove(otherAvailablePages.begin(), otherAvailablePages.end(), page),
+                otherAvailablePages.end());
+        }
+
+        // newRoot.set_original_page(originalNode.get_original_page());
+
+        SecondaryIndexNode page1;
+        SecondaryIndexNode page2;
+        for (int i = 0; i < schema.min_length; i++)
+        {
+            page1.add_entry(std::move(originalNode.entries()[i]));
+            page1.add_pointer(originalNode.page_pointers()[i]);
+            page2.add_entry(std::move(originalNode.entries()[i + 1 + schema.min_length]));
+            page2.add_pointer(originalNode.page_pointers()[i + schema.min_length + 1]);
+        }
+        page1.add_pointer(originalNode.page_pointers()[schema.min_length]);
+        page2.add_pointer(originalNode.page_pointers()[schema.min_length * 2]);
+
+        uint32_t page1Ptr;
+        if (otherAvailablePages.size() > 0)
+        {
+            page1Ptr = otherAvailablePages[0];
+            otherAvailablePages.erase(otherAvailablePages.begin());
+        }
+        else
+        {
+            page1Ptr = num_pages_in_file(db_path, page_size);
+        }
+        page1.set_original_page(page1Ptr);
+        page1.set_available_pages(otherAvailablePages);
+        std::vector<uint32_t> pagesUsed1 = page1.save(db_path, schema, page_size);
+        for (uint32_t page : pagesUsed1)
+        {
+            otherAvailablePages.erase(
+                std::remove(otherAvailablePages.begin(), otherAvailablePages.end(), page),
+                otherAvailablePages.end());
+        }
+
+        uint32_t page2Ptr;
+        if (otherAvailablePages.size() > 0)
+        {
+            page2Ptr = otherAvailablePages[0];
+            otherAvailablePages.erase(otherAvailablePages.begin());
+        }
+        else
+        {
+            page2Ptr = num_pages_in_file(db_path, page_size);
+        }
+        page2.set_original_page(page2Ptr);
+        page2.set_available_pages(otherAvailablePages);
+        std::vector<uint32_t> pagesUsed2 = page2.save(db_path, schema, page_size);
+
+        newRoot.clear_pointers();
+        newRoot.add_pointer(page1Ptr);
+        newRoot.add_pointer(page2Ptr);
+        newRoot.save(db_path, schema, page_size);
+
+
+        return current_page_ref;
+    }
+
+    bool forceInsertIntoIndex(const std::string &db_path, uint32_t page_num, IndexEntry &indexEntry, uint32_t page_size, const TableSchema &schema, const Column &indexed_col, const Column &pk_col, uint32_t page1, uint32_t page2, uint32_t previous_page_ref = 0)
+    {
+        std::cout << "SAME?: " << schema.index_page_refs.at(0) << std::endl;
+        std::cout << "PROMOTE VALUE/MAP: " << page_num << std::endl;
+        SecondaryIndexNode secondaryIndexNode = SecondaryIndexNode::load(db_path, page_num, schema, indexed_col, pk_col, page_size);
+        std::vector<IndexEntry> entries = secondaryIndexNode.entries();
+
+        bool added = false;
+        for (size_t i = 0; i < entries.size(); i++)
+        {
+            if (*(entries[i].value) > *(indexEntry.value))
+            {
+                secondaryIndexNode.add_entry_at(std::move(indexEntry), i);
+                secondaryIndexNode.add_pointer_at(page1, i);
+                secondaryIndexNode.set_pointer_at(page2, i + 1);
+            }
+        }
+        if (!added)
+        {
+            secondaryIndexNode.add_entry(std::move(indexEntry));
+            secondaryIndexNode.set_pointer_at(page1, entries.size());
+            secondaryIndexNode.add_pointer(page2);
+        }
+        secondaryIndexNode.save(db_path, schema, page_size);
+        return false;
+    }
+
+    bool split_secondary_node(uint32_t above_page_ref, SecondaryIndexNode &originalNode, const TableSchema &schema, const std::string &db_path, const Column &indexed_col, const Column &pk_col, uint32_t page_size)
+    {
+        std::cout << "SPLIT SECONDARY NODE" << std::endl;
+        std::vector<uint32_t> otherAvailablePages = originalNode.get_available_pages_index();
+        otherAvailablePages.insert(otherAvailablePages.begin(), *originalNode.original_page());
+
+        IndexEntry &&rowPush = std::move(originalNode.entries()[schema.min_length]);
+
+        SecondaryIndexNode page1;
+        SecondaryIndexNode page2;
+        for (int i = 0; i < schema.min_length; i++)
+        {
+            page1.add_entry(std::move(originalNode.entries()[i]));
+            page1.add_pointer(originalNode.page_pointers()[i]);
+            page2.add_entry(std::move(originalNode.entries()[i + 1 + schema.min_length]));
+            page2.add_pointer(originalNode.page_pointers()[i + schema.min_length + 1]);
+        }
+        page1.add_pointer(originalNode.page_pointers()[schema.min_length]);
+        page2.add_pointer(originalNode.page_pointers()[schema.min_length * 2]);
+
+        uint32_t page1Ptr;
+        if (otherAvailablePages.size() > 0)
+        {
+            page1Ptr = otherAvailablePages[0];
+            otherAvailablePages.erase(otherAvailablePages.begin());
+        }
+        else
+        {
+            page1Ptr = num_pages_in_file(db_path, page_size);
+        }
+        page1.set_original_page(page1Ptr);
+        page1.set_available_pages(otherAvailablePages);
+        std::vector<uint32_t> pagesUsed1 = page1.save(db_path, schema, page_size);
+        for (uint32_t page : pagesUsed1)
+        {
+            otherAvailablePages.erase(
+                std::remove(otherAvailablePages.begin(), otherAvailablePages.end(), page),
+                otherAvailablePages.end());
+        }
+
+        uint32_t page2Ptr;
+        if (otherAvailablePages.size() > 0)
+        {
+            page2Ptr = otherAvailablePages[0];
+            otherAvailablePages.erase(otherAvailablePages.begin());
+        }
+        else
+        {
+            page2Ptr = num_pages_in_file(db_path, page_size);
+        }
+        page2.set_original_page(page2Ptr);
+        page2.set_available_pages(otherAvailablePages);
+        std::vector<uint32_t> pagesUsed2 = page2.save(db_path, schema, page_size);
+
+
+        forceInsertIntoIndex(db_path, above_page_ref, rowPush, page_size, schema, indexed_col, pk_col, page1Ptr, page2Ptr);
+
+        return true;
+    }
+
     bool insertIntoIndex(const std::string &db_path, uint32_t page_num, const Row &row, uint32_t page_size, const TableSchema &schema, const Column &indexed_col, const Column &pk_col, uint32_t previous_page_ref = 0)
     {
         SecondaryIndexNode secondaryIndexNode = SecondaryIndexNode::load(db_path, page_num, schema, indexed_col, pk_col, page_size);
 
         std::vector<IndexEntry> entries = secondaryIndexNode.entries();
 
-        std::cout << "Length: " << entries.size() << std::endl;
-        std::cout << "Pointers length: " << secondaryIndexNode.page_pointers().size() << std::endl;
-
         if (secondaryIndexNode.entries().size() >= schema.min_length * 2 + 1)
         {
             if (previous_page_ref == 0)
             {
-                std::cout << "SPLIT ROOT" << std::endl;
+                split_secondary_root(page_num, secondaryIndexNode, schema, db_path, page_size);
+                return insertIntoIndex(db_path, page_num, row, page_size, schema, indexed_col, pk_col, previous_page_ref);
             }
             else
             {
-
-                std::cout << "SPLIT NODE" << std::endl;
+                split_secondary_node(previous_page_ref, secondaryIndexNode, schema, db_path, indexed_col, pk_col, page_size);
+                return insertIntoIndex(db_path, page_num, row, page_size, schema, indexed_col, pk_col, previous_page_ref);
             }
         }
 
@@ -385,8 +519,6 @@ namespace dbone::insert
 
                 if (*(entries[i].value) > *(indexedValue))
                 {
-                    std::cout << "Value: " << entries[i].value.get()->default_value_str() << std::endl;
-                    std::cout << "Value2: " << indexedValue.get()->default_value_str() << std::endl;
                     if (secondaryIndexNode.page_pointers()[0] == static_cast<uint32_t>(0))
                     {
                         IndexEntry indexEntry;
@@ -394,14 +526,12 @@ namespace dbone::insert
                         indexEntry.primary_keys.push_back(pk_col.parse(row.at(pk_col.name())));
                         secondaryIndexNode.add_entry_at(std::move(indexEntry), i);
                         adding = true;
-                        std::cout << "THIS PATH" << std::endl;
                         break;
                     }
                     else
                     {
-                        std::cout << "ERROR" << std::endl;
                         adding = true;
-                        // return insertIntoIndex(db_path, secondaryIndexNode.page_pointers()[i], row, page_size, schema, indexed_col, pk_col, page_num);
+                        return insertIntoIndex(db_path, secondaryIndexNode.page_pointers()[i], row, page_size, schema, indexed_col, pk_col, page_num);
                     }
                 }
                 else if (entries[i].value == indexedValue)
@@ -427,12 +557,18 @@ namespace dbone::insert
             }
             if (!adding)
             {
-                IndexEntry indexEntry;
-                indexEntry.value = indexed_col.parse(row.at(indexed_col.name()));
-                indexEntry.primary_keys.push_back(pk_col.parse(row.at(pk_col.name())));
-                secondaryIndexNode.add_entry(std::move(indexEntry));
-                secondaryIndexNode.add_pointer(0);
-                std::cout << "NOT ADDED" << std::endl;
+                if (secondaryIndexNode.page_pointers()[entries.size()] == 0)
+                {
+                    IndexEntry indexEntry;
+                    indexEntry.value = indexed_col.parse(row.at(indexed_col.name()));
+                    indexEntry.primary_keys.push_back(pk_col.parse(row.at(pk_col.name())));
+                    secondaryIndexNode.add_entry(std::move(indexEntry));
+                    secondaryIndexNode.add_pointer(0);
+                }
+                else
+                {
+                    return insertIntoIndex(db_path, secondaryIndexNode.page_pointers()[entries.size()], row, page_size, schema, indexed_col, pk_col, page_num);
+                }
             }
         }
 
@@ -444,18 +580,14 @@ namespace dbone::insert
     ValidationResult insert(const std::string &db_path, const Row &row, uint32_t page_size)
     {
         std::string err;
-        std::cout << "INSERT?" << std::endl;
         TableSchema schema = read_schema(db_path, page_size);
         if (!err.empty())
         {
             return {false, "Failed to load schema: " + err};
         }
 
-        std::cout << "PRE VALID" << std::endl;
-
         ValidationResult validationResult = validate_row(schema, row);
 
-        std::cout << "VALIDATED" << std::endl;
 
         insertInto(db_path, *schema.clustered_page_ref, row, page_size, schema);
 

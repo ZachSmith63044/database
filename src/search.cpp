@@ -1,5 +1,6 @@
 #include "dbone/search.hpp"
 #include "dbone/clustered_index_node.hpp"
+#include "dbone/secondary_index_node.hpp"
 #include <chrono>
 
 SearchResult searchMultiPrimaryKeys(
@@ -246,6 +247,34 @@ static void searchNonIndexedAcc(
                 outRows.emplace_back(items[i].toRow(schema));
             }
         }
+        else if (param.comparator == Comparator::LessEqual)
+        {
+            if (cell <= compareVal)
+            {
+                outRows.emplace_back(items[i].toRow(schema));
+            }
+        }
+        else if (param.comparator == Comparator::Greater)
+        {
+            if (cell > compareVal)
+            {
+                outRows.emplace_back(items[i].toRow(schema));
+            }
+        }
+        else if (param.comparator == Comparator::GreaterEqual)
+        {
+            if (cell >= compareVal)
+            {
+                outRows.emplace_back(items[i].toRow(schema));
+            }
+        }
+        else if (param.comparator == Comparator::Equal)
+        {
+            if (cell == compareVal)
+            {
+                outRows.emplace_back(items[i].toRow(schema));
+            }
+        }
 
         if (pagePointers[i] != 0)
         {
@@ -271,6 +300,99 @@ SearchResult searchNonIndexed(
     // result.rows.reserve(40000); // pre-allocate some space to reduce growth
     searchNonIndexedAcc(db_path, schema, currentPage, param, page_size, result.rows);
     return result;
+}
+
+static void searchIndexedAcc(const std::string &db_path, const TableSchema &schema, uint32_t currentPage, const SearchParam &param, const Column &indexed_col, const Column &pk_col, uint32_t page_size, std::vector<std::unique_ptr<DataType>> &outKeys)
+{
+    SecondaryIndexNode secondaryIndexNode = SecondaryIndexNode::load(db_path, currentPage, schema, indexed_col, pk_col, page_size);
+    std::vector<IndexEntry> entries = secondaryIndexNode.entries();
+    // std::cout << "ENTRY SIZE: " << entries.size() << std::endl;
+    bool checkEnd = true;
+    if (param.comparator == Comparator::Equal)
+    {
+        for (size_t i = 0; i < entries.size(); i++)
+        {
+            // std::cout << i << ": " << entries[i].value.get()->default_value_str() << std::endl;
+            if (*entries[i].value > *param.compareTo)
+            {
+                checkEnd = false;
+                if (secondaryIndexNode.page_pointers()[i] != 0)
+                {
+                    std::cout << "NEW SEARCH" << std::endl;
+                    searchIndexedAcc(db_path, schema, secondaryIndexNode.page_pointers()[i], param, indexed_col, pk_col, page_size, outKeys);
+                    break;
+                }
+                else
+                {
+                    std::cout << "BREAK" << std::endl;
+                    break;
+                }
+            }
+            else if (*entries[i].value == *param.compareTo)
+            {
+                if (secondaryIndexNode.page_pointers()[i] != 0)
+                    searchIndexedAcc(db_path, schema, secondaryIndexNode.page_pointers()[i], param, indexed_col, pk_col, page_size, outKeys);
+                for (auto &key : entries[i].primary_keys)
+                {
+                    outKeys.push_back(std::move(key));
+                }
+            }
+        }
+        if (checkEnd)
+        {
+            if (secondaryIndexNode.page_pointers()[entries.size()] != 0)
+                searchIndexedAcc(db_path, schema, secondaryIndexNode.page_pointers()[entries.size()], param, indexed_col, pk_col, page_size, outKeys);
+        }
+    }
+    else if (param.comparator == Comparator::Less || param.comparator == Comparator::LessEqual)
+    {
+        for (size_t i = 0; i < entries.size(); i++)
+        {
+            if (*entries[i].value < *param.compareTo)
+            {
+                if (secondaryIndexNode.page_pointers()[i] != 0)
+                    searchIndexedAcc(db_path, schema, secondaryIndexNode.page_pointers()[i], param, indexed_col, pk_col, page_size, outKeys);
+                for (auto &key : entries[i].primary_keys)
+                {
+                    outKeys.push_back(std::move(key));
+                }
+            }
+            else if (*entries[i].value == *param.compareTo)
+            {
+                if (secondaryIndexNode.page_pointers()[i] != 0)
+                    searchIndexedAcc(db_path, schema, secondaryIndexNode.page_pointers()[i], param, indexed_col, pk_col, page_size, outKeys);
+                if (param.comparator == Comparator::LessEqual)
+                {
+                    for (auto &key : entries[i].primary_keys)
+                    {
+                        outKeys.push_back(std::move(key));
+                    }
+                }
+            }
+            else
+            {
+                if (secondaryIndexNode.page_pointers()[i] != 0)
+                    searchIndexedAcc(db_path, schema, secondaryIndexNode.page_pointers()[i], param, indexed_col, pk_col, page_size, outKeys);
+                checkEnd = false;
+                break;
+            }
+        }
+        if (checkEnd)
+        {
+            if (secondaryIndexNode.page_pointers()[entries.size()] != 0)
+                searchIndexedAcc(db_path, schema, secondaryIndexNode.page_pointers()[entries.size()], param, indexed_col, pk_col, page_size, outKeys);
+        }
+    }
+}
+
+SearchResult searchIndexed(const std::string &db_path, const TableSchema &schema, const Column &indexed_col, const Column &pk_col, const SearchParam &param, size_t index, uint32_t page_size)
+{
+    std::vector<std::unique_ptr<DataType>> outKeys;
+    searchIndexedAcc(db_path, schema, schema.index_page_refs.at(index), param, indexed_col, pk_col, page_size, outKeys);
+    std::cout << "Keys size: " << outKeys.size() << std::endl;
+    // std::cout << outKeys[0].get()->default_value_str() << std::endl;
+    size_t val = 0;
+    return searchMultiPrimaryKeys(db_path, schema, *schema.clustered_page_ref, outKeys, page_size, val);
 }
 
 SearchResult dbone::search::searchItem(const std::string &db_path, const std::vector<SearchParam> &queries, uint32_t page_size)
@@ -349,6 +471,7 @@ SearchResult dbone::search::searchItem(const std::string &db_path, const std::ve
                 else
                 {
                     std::cout << "SEARCHING INDEXED" << std::endl;
+                    result = searchIndexed(db_path, schema, *schema.columns[*paramCopy.columnIndex], *column, paramCopy, *paramCopy.columnIndex, page_size);
                 }
 
                 auto end = std::chrono::high_resolution_clock::now();

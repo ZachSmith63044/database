@@ -90,15 +90,15 @@ int main(int argc, char **argv)
 
     uint32_t PAGE_SIZE_DEFAULT = 4096;
 
-    make_table(PAGE_SIZE_DEFAULT);
+    // make_table(PAGE_SIZE_DEFAULT);
 
-    TableSchema s = read_schema("C:/Users/zakha/Documents/15. Database+/store/table - Copy (5).efdb", PAGE_SIZE_DEFAULT);
+    // TableSchema s = read_schema("C:/Users/zakha/Documents/15. Database+/store/table - Copy (5).efdb", PAGE_SIZE_DEFAULT);
 
-    std::cout << "Size: " << s.index_page_refs.size() << std::endl;
+    // std::cout << "Size: " << s.index_page_refs.size() << std::endl;
 
-    insert_table(50, PAGE_SIZE_DEFAULT);
+    // insert_table(10000, PAGE_SIZE_DEFAULT);
 
-    std::cout << "INSERTED" << std::endl;
+    // std::cout << "INSERTED" << std::endl;
 
     // std::vector<std::unique_ptr<DataType>> primaryKeys;
 
@@ -131,7 +131,7 @@ int main(int argc, char **argv)
     std::cout << "BEFORE" << std::endl;
     SearchParam param;
     param.columnName = "id";
-    param.comparator = Comparator::Less;
+    param.comparator = Comparator::LessEqual;
     param.compareTo = std::make_unique<BigIntType>(50);
     std::vector<SearchParam> params;
     params.push_back(std::move(param));
@@ -146,22 +146,7 @@ int main(int argc, char **argv)
         }
         std::cout << "}" << std::endl;
     }
-    // // Collect all IDs that exist (stored as strings)
-    // std::unordered_set<std::string> presentIds;
-    // for (const dbone::insert::Row& row : result.rows) {
-    //     auto it = row.find("id");
-    //     if (it != row.end()) {
-    //         presentIds.insert(it->second);
-    //     }
-    // }
-
-    // // // // Now print missing IDs
-    // for (int i = 0; i < 40000; ++i) {
-    //     std::string idStr = std::to_string(i);
-    //     if (presentIds.find(idStr) == presentIds.end()) {
-    //         std::cout << i << "\n";
-    //     }
-    // }
+    
     std::cout << result.timeTaken << std::endl;
 
     return 0;

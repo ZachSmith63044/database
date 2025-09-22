@@ -58,7 +58,6 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
 
     // page_count (1 byte)
     uint8_t page_count = readU8(page, off);
-    std::cout << "page: " << static_cast<int>(page_count) << std::endl;
 
     // page list
     std::vector<uint32_t> page_list;
@@ -67,8 +66,6 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
         uint32_t pg = readU32(page, off);
         page_list.push_back(pg);
     }
-
-    std::cout << "PAGE LIST" << std::endl;
 
     // --- Step 2: figure out payload bytes inside page 0
     uint64_t header_size = 1ull + 4ull * (page_count - 1);
@@ -93,8 +90,6 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
         schema_payload.insert(schema_payload.end(), buf.begin(), buf.end());
     }
 
-    std::cout << "STEP 4" << std::endl;
-
     // --- Step 4: parse schema_payload
     off = 0;
     uint32_t data_root_page = readU32(schema_payload, off);
@@ -115,7 +110,6 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
     schema.clustered_page_ref = data_root_page;
     schema.available_pages_ref = available_pages;
 
-    std::cout << "STEP 5" << std::endl;
     
     std::vector<size_t> indexColumns;
 

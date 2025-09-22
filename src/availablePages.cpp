@@ -73,8 +73,6 @@ available_pages get_available_pages(const std::string &file_name, uint32_t avail
 
     availablePages.read_from_page_pointers = readPages;
 
-    std::cout << payload.size() << std::endl;
-
     size_t off = 0;
     uint32_t legnthAvailablePages = readU32(payload, off);
     std::vector<uint32_t> availablePagesVect;

@@ -41,6 +41,12 @@ size_t SecondaryIndexNode::num_pages_in_file(const std::string& path, size_t pag
     return file_size / page_size;
 }
 
+void SecondaryIndexNode::clear_pointers()
+{
+    std::vector<uint32_t> newPtrs;
+    page_pointers_ = newPtrs;
+}
+
 // --------- load ----------
 SecondaryIndexNode SecondaryIndexNode::load(const std::string& db_path,
                                             uint32_t page_num,
