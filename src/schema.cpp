@@ -110,7 +110,6 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
     schema.clustered_page_ref = data_root_page;
     schema.available_pages_ref = available_pages;
 
-    
     std::vector<size_t> indexColumns;
 
     for (uint16_t i = 0; i < col_count; ++i)
@@ -129,6 +128,7 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
         {
             indexColumns.push_back(i);
         }
+
         uint8_t type_id = packed & 0x0F;
 
         if (type_id == 1)
@@ -136,12 +136,7 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
             // dump_bytes(schema_payload, off, 8, "BIGINT default bytes");
             if (off + 8 > schema_payload.size())
                 throw std::runtime_error("BIGINT default out of bounds");
-            int64_t def = 0;
-            for (int b = 0; b < 8; ++b)
-            {
-                def |= static_cast<int64_t>(schema_payload[off + b]) << (8 * b);
-            }
-            off += 8;
+            int64_t def = readI64(schema_payload, off);
             schema.columns.emplace_back(
                 std::make_unique<BigIntColumn>(col_name, nullable, primaryKey, unique, indexed, def));
         }
@@ -156,6 +151,33 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
             schema.columns.emplace_back(
                 std::make_unique<CharColumn>(col_name, len, nullable, primaryKey, unique, indexed, def));
         }
+        else if (type_id == 3)
+        {
+            uint32_t max_length = readU32(schema_payload, off);
+
+            // Determine how many bytes are used to encode the string length
+            int bits = static_cast<int>(std::ceil(std::log2(max_length + 1)));
+            int len_bytes = (bits + 7) / 8;
+
+            // Read actual default string length
+            uint32_t def_len = 0;
+            for (int i = 0; i < len_bytes; i++)
+            {
+                def_len = (def_len << 8) | readU8(schema_payload, off);
+            }
+
+            if (def_len > max_length || off + def_len > schema_payload.size())
+            {
+                throw std::runtime_error("VARCHAR default out of bounds");
+            }
+
+            // Extract default string
+            std::string def(reinterpret_cast<const char *>(&schema_payload[off]), def_len);
+            off += def_len;
+
+            schema.columns.emplace_back(
+                std::make_unique<VarCharColumn>(col_name, max_length, nullable, primaryKey, unique, indexed, def));
+        }
         else
         {
             throw std::runtime_error("Unknown column type " + std::to_string(type_id));
@@ -165,7 +187,8 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
 
     for (size_t i = 0; i < indexColumns.size(); i++)
     {
-        schema.index_page_refs[indexColumns[i]] = readU32(schema_payload, off);
+        uint32_t val = readU32(schema_payload, off);
+        schema.index_page_refs[indexColumns[i]] = val;
     }
 
     return schema;

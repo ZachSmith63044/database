@@ -38,7 +38,7 @@ int make_table(uint32_t page_size)
     TableSchema s;
     s.table_name = "orders";
     s.columns.emplace_back(std::make_unique<BigIntColumn>("id", /*nullable=*/false, /*pk=*/false, /*uniq=*/true, true, /*default=*/4342596));
-    s.columns.emplace_back(std::make_unique<CharColumn>("code", 8, /*nullable=*/false, /*pk=*/true, /*uniq=*/true, false, /*default=*/"ABCDEFGH"));
+    s.columns.emplace_back(std::make_unique<VarCharColumn>("code", 250, /*nullable=*/false, /*pk=*/true, /*uniq=*/true, false, /*default=*/"ABCDEFGH"));
     s.min_length = 128;
     std::string err;
     bool ok = create_table(s, "C:/Users/zakha/Documents/15. Database+/store", &err, page_size);
@@ -92,31 +92,14 @@ int main(int argc, char **argv)
 
     // make_table(PAGE_SIZE_DEFAULT);
 
-    // TableSchema s = read_schema("C:/Users/zakha/Documents/15. Database+/store/table - Copy (5).efdb", PAGE_SIZE_DEFAULT);
-
-    // std::cout << "Size: " << s.index_page_refs.size() << std::endl;
-
     // insert_table(10000, PAGE_SIZE_DEFAULT);
 
     // std::cout << "INSERTED" << std::endl;
 
     // std::vector<std::unique_ptr<DataType>> primaryKeys;
 
-    // primaryKeys.push_back(std::make_unique<CharType>("C0000007", 8));
-    // primaryKeys.push_back(std::make_unique<CharType>("C0000284", 8));
-    // primaryKeys.push_back(std::make_unique<CharType>("C0000389", 8));
-    // primaryKeys.push_back(std::make_unique<CharType>("C0008392", 8));
-    // primaryKeys.push_back(std::make_unique<CharType>("C0027931", 8));
-    // primaryKeys.push_back(std::make_unique<CharType>("C0028931", 8));
-    // primaryKeys.push_back(std::make_unique<CharType>("C0029931", 8));
-    // primaryKeys.push_back(std::make_unique<CharType>("C0035931", 8));
-    // primaryKeys.push_back(std::make_unique<CharType>("C0036031", 8));
-    // primaryKeys.push_back(std::make_unique<CharType>("C0036231", 8));
-    // primaryKeys.push_back(std::make_unique<CharType>("C0036431", 8));
-    // primaryKeys.push_back(std::make_unique<CharType>("C0036631", 8));
-    // primaryKeys.push_back(std::make_unique<CharType>("C0037831", 8));
-    // primaryKeys.push_back(std::make_unique<CharType>("C0038031", 8));
-    // SearchResult result = dbone::search::searchPrimaryKeys("C:/Users/zakha/Documents/15. Database+/store/table - Copy (5).efdb", primaryKeys, PAGE_SIZE_DEFAULT);
+    // primaryKeys.push_back(std::make_unique<VarCharType>("C0000407", 250));
+    // SearchResult result = dbone::search::searchPrimaryKeys("C:/Users/zakha/Documents/15. Database+/store/table.efdb", primaryKeys, PAGE_SIZE_DEFAULT);
 
     // for (dbone::insert::Row row : result.rows)
     // {
@@ -128,11 +111,16 @@ int main(int argc, char **argv)
     //     std::cout << "}" << std::endl;
     // }
 
-    std::cout << "BEFORE" << std::endl;
+    // std::cout << result.timeTaken << std::endl;
+
+
+    // std::cout << "BEFORE" << std::endl;
+    std::cout << "STARTING" << std::endl;
     SearchParam param;
-    param.columnName = "id";
-    param.comparator = Comparator::LessEqual;
-    param.compareTo = std::make_unique<BigIntType>(50);
+    param.columnName = "code";
+    param.comparator = Comparator::NonEqual;
+    param.compareTo = std::make_unique<VarCharType>("C0000132", 250);
+    param.compareTo2 = std::make_unique<VarCharType>("C0000192", 250);
     std::vector<SearchParam> params;
     params.push_back(std::move(param));
     SearchResult result = dbone::search::searchItem("C:/Users/zakha/Documents/15. Database+/store/table.efdb", params, PAGE_SIZE_DEFAULT);
@@ -146,8 +134,9 @@ int main(int argc, char **argv)
         }
         std::cout << "}" << std::endl;
     }
-    
+    std::cout << result.rows.size() << std::endl;
     std::cout << result.timeTaken << std::endl;
+
 
     return 0;
 }

@@ -57,7 +57,6 @@ SecondaryIndexNode SecondaryIndexNode::load(const std::string& db_path,
     std::ifstream in(db_path, std::ios::binary);
     if (!in) throw std::runtime_error("SecondaryIndexNode::load: open failed");
 
-    // read root page
     const uint64_t offset = uint64_t(page_num) * page_size;
     in.seekg(offset, std::ios::beg);
     if (!in) throw std::runtime_error("SecondaryIndexNode::load: seek root failed");
@@ -65,6 +64,7 @@ SecondaryIndexNode SecondaryIndexNode::load(const std::string& db_path,
     std::vector<uint8_t> root(page_size);
     in.read(reinterpret_cast<char*>(root.data()), root.size());
     if (!in) throw std::runtime_error("SecondaryIndexNode::load: read root failed");
+
 
     size_t off = 0;
     uint32_t page_count = readU32(root, off); // number of extra pages after root
@@ -80,11 +80,15 @@ SecondaryIndexNode SecondaryIndexNode::load(const std::string& db_path,
     const size_t header_size = 4u + 4u * page_count;
     if (header_size > page_size) throw std::runtime_error("SecondaryIndexNode::load: header too large");
 
+
     // gather full payload: tail of root + all subsequent pages
     std::vector<uint8_t> full_payload;
     if (header_size < root.size()) {
         full_payload.insert(full_payload.end(), root.begin() + header_size, root.end());
     }
+
+    
+
     for (auto pg : page_list) {
         std::vector<uint8_t> buf(page_size);
         const uint64_t pg_off = uint64_t(pg) * page_size;
@@ -94,6 +98,7 @@ SecondaryIndexNode SecondaryIndexNode::load(const std::string& db_path,
         if (!in) throw std::runtime_error("SecondaryIndexNode::load: read page failed");
         full_payload.insert(full_payload.end(), buf.begin(), buf.end());
     }
+
 
     size_t ref = 0;
 

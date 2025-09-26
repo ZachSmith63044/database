@@ -17,7 +17,11 @@ enum class Comparator {
     LessEqual,   // <=
     Equal,       // ==
     GreaterEqual,// >=
-    Greater      // >
+    Greater,      // >
+    EqualNon, // <= x <
+    NonEqual, // < x <=
+    NonNon,
+    EqualEqual
 };
 
 inline std::ostream& operator<<(std::ostream& os, Comparator c) {
@@ -27,6 +31,10 @@ inline std::ostream& operator<<(std::ostream& os, Comparator c) {
         case Comparator::Greater:      return os << ">";
         case Comparator::LessEqual:    return os << "<=";
         case Comparator::GreaterEqual: return os << ">=";
+        case Comparator::EqualNon:    return os << "<= x <";
+        case Comparator::NonEqual: return os << "< x <=";
+        case Comparator::NonNon: return os << "< x <";
+        case Comparator::EqualEqual: return os << "< x <";
     }
     return os << "unknown";
 }
@@ -37,6 +45,7 @@ struct SearchParam
     std::optional<uint16_t> columnIndex;
     Comparator comparator;
     std::unique_ptr<DataType> compareTo;
+    std::optional<std::unique_ptr<DataType>> compareTo2;
 };
 
 namespace dbone::search

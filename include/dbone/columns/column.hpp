@@ -8,6 +8,7 @@ enum class ColumnType : uint8_t
 {
     BIGINT = 1,
     CHAR = 2,
+    VARCHAR = 3
 };
 
 class Column
@@ -65,6 +66,7 @@ public:
     }
 
     const std::string &name() const { return name_; }
+    const std::unique_ptr<DataType> &default_val() const { return defaultVal_; }
     bool nullable() const { return nullable_; }
     bool primaryKey() const { return primaryKey_; }
     bool unique() const { return unique_; }
@@ -127,4 +129,31 @@ public:
 
 private:
     uint32_t length_;
+};
+
+
+class VarCharColumn : public Column
+{
+public:
+    VarCharColumn(std::string name,
+               uint32_t max_length,
+               bool nullable,
+               bool primaryKey,
+               bool unique,
+               bool indexed,
+               std::string defaultVal);
+
+    void to_bits(BitBuffer &buf) const override;
+    std::unique_ptr<DataType> parse(const std::string &raw) const override;
+    std::unique_ptr<DataType> from_bits(const std::vector<uint8_t> &payload, size_t &ref) const override;
+
+    std::unique_ptr<Column> clone() const override
+    {
+        return std::make_unique<VarCharColumn>(*this);
+    }
+
+    ColumnType type() const override { return ColumnType::VARCHAR; }
+
+private:
+    uint32_t max_length_;
 };

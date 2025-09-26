@@ -17,13 +17,13 @@
 	"dependencies" : 
 	[
 		{
+			"id" : "dbone::@6890427a1f51a3e7e1df"
+		},
+		{
 			"id" : "ZERO_CHECK::@6890427a1f51a3e7e1df"
 		},
 		{
 			"id" : "dbone_cli::@a016cb1bd829ba19c0a0"
-		},
-		{
-			"id" : "dbone::@6890427a1f51a3e7e1df"
 		}
 	],
 	"id" : "ALL_BUILD::@6890427a1f51a3e7e1df",

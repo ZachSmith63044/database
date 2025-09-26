@@ -104,3 +104,50 @@ std::unique_ptr<DataType> CharColumn::from_bits(const std::vector<uint8_t> &payl
 {
     return std::make_unique<CharType>(CharType::from_bits(payload, ref, length_));
 }
+
+// ---------- VarCharColumn ----------
+VarCharColumn::VarCharColumn(std::string name,
+                       uint32_t max_length,
+                       bool nullable,
+                       bool primaryKey,
+                       bool unique,
+                       bool indexed,
+                       std::string defaultVal)
+    : Column(std::move(name),
+             nullable,
+             primaryKey,
+             unique,
+             indexed,
+             std::make_unique<VarCharType>(defaultVal, max_length)),
+      max_length_(max_length) {}
+
+void VarCharColumn::to_bits(BitBuffer &buf) const
+{
+    buf.putString(name_);
+
+    uint8_t packed = 0;
+    if (nullable_)
+        packed |= (1u << 7);
+    if (primaryKey_)
+        packed |= (1u << 6);
+    if (unique_)
+        packed |= (1u << 5);
+    if (indexed_)
+        packed |= (1u << 4);
+    packed |= static_cast<uint8_t>(ColumnType::VARCHAR);
+    buf.putU8(packed);
+
+    buf.putU32(max_length_);
+
+    defaultVal_->to_bits(buf);
+}
+
+std::unique_ptr<DataType> VarCharColumn::parse(const std::string &raw) const
+{
+    return VarCharType::parse(raw, max_length_);
+}
+
+std::unique_ptr<DataType> VarCharColumn::from_bits(const std::vector<uint8_t> &payload, size_t &ref) const
+{
+    return std::make_unique<VarCharType>(VarCharType::from_bits(payload, ref, max_length_));
+}

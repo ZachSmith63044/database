@@ -397,8 +397,6 @@ namespace dbone::insert
 
     bool forceInsertIntoIndex(const std::string &db_path, uint32_t page_num, IndexEntry &indexEntry, uint32_t page_size, const TableSchema &schema, const Column &indexed_col, const Column &pk_col, uint32_t page1, uint32_t page2, uint32_t previous_page_ref = 0)
     {
-        std::cout << "SAME?: " << schema.index_page_refs.at(0) << std::endl;
-        std::cout << "PROMOTE VALUE/MAP: " << page_num << std::endl;
         SecondaryIndexNode secondaryIndexNode = SecondaryIndexNode::load(db_path, page_num, schema, indexed_col, pk_col, page_size);
         std::vector<IndexEntry> entries = secondaryIndexNode.entries();
 
@@ -424,7 +422,6 @@ namespace dbone::insert
 
     bool split_secondary_node(uint32_t above_page_ref, SecondaryIndexNode &originalNode, const TableSchema &schema, const std::string &db_path, const Column &indexed_col, const Column &pk_col, uint32_t page_size)
     {
-        std::cout << "SPLIT SECONDARY NODE" << std::endl;
         std::vector<uint32_t> otherAvailablePages = originalNode.get_available_pages_index();
         otherAvailablePages.insert(otherAvailablePages.begin(), *originalNode.original_page());
 
@@ -485,6 +482,7 @@ namespace dbone::insert
     bool insertIntoIndex(const std::string &db_path, uint32_t page_num, const Row &row, uint32_t page_size, const TableSchema &schema, const Column &indexed_col, const Column &pk_col, uint32_t previous_page_ref = 0)
     {
         SecondaryIndexNode secondaryIndexNode = SecondaryIndexNode::load(db_path, page_num, schema, indexed_col, pk_col, page_size);
+
 
         std::vector<IndexEntry> entries = secondaryIndexNode.entries();
 
@@ -591,6 +589,7 @@ namespace dbone::insert
 
         insertInto(db_path, *schema.clustered_page_ref, row, page_size, schema);
 
+
         Column *pk_col = nullptr;
         for (size_t i = 0; i < schema.columns.size(); i++)
         {
@@ -600,6 +599,7 @@ namespace dbone::insert
                 break;
             }
         }
+
 
         for (const auto &[colIndex, pageRef] : schema.index_page_refs)
         {

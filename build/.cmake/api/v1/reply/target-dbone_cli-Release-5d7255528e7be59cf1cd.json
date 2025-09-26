@@ -2,10 +2,10 @@
 	"artifacts" : 
 	[
 		{
-			"path" : "apps/dbone_cli/MinSizeRel/dbone_cli.exe"
+			"path" : "apps/dbone_cli/Release/dbone_cli.exe"
 		},
 		{
-			"path" : "apps/dbone_cli/MinSizeRel/dbone_cli.pdb"
+			"path" : "apps/dbone_cli/Release/dbone_cli.pdb"
 		}
 	],
 	"backtrace" : 1,
@@ -56,7 +56,7 @@
 			"compileCommandFragments" : 
 			[
 				{
-					"fragment" : "/DWIN32 /D_WINDOWS /GR /EHsc /O1 /Ob1 /DNDEBUG -std:c++20 -MD"
+					"fragment" : "/DWIN32 /D_WINDOWS /GR /EHsc /O2 /Ob2 /DNDEBUG -std:c++20 -MD"
 				},
 				{
 					"backtrace" : 4,
@@ -92,11 +92,11 @@
 	"dependencies" : 
 	[
 		{
-			"id" : "ZERO_CHECK::@6890427a1f51a3e7e1df"
-		},
-		{
 			"backtrace" : 2,
 			"id" : "dbone::@6890427a1f51a3e7e1df"
+		},
+		{
+			"id" : "ZERO_CHECK::@6890427a1f51a3e7e1df"
 		}
 	],
 	"id" : "dbone_cli::@a016cb1bd829ba19c0a0",
@@ -105,7 +105,7 @@
 		"commandFragments" : 
 		[
 			{
-				"fragment" : "/DWIN32 /D_WINDOWS /GR /EHsc /O1 /Ob1 /DNDEBUG -MD",
+				"fragment" : "/DWIN32 /D_WINDOWS /GR /EHsc /O2 /Ob2 /DNDEBUG -MD",
 				"role" : "flags"
 			},
 			{
@@ -118,7 +118,7 @@
 			},
 			{
 				"backtrace" : 2,
-				"fragment" : "..\\..\\MinSizeRel\\dbone.lib",
+				"fragment" : "..\\..\\Release\\dbone.lib",
 				"role" : "libraries"
 			},
 			{

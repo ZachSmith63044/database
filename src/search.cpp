@@ -92,7 +92,6 @@ SearchResult dbone::search::searchPrimaryKeys(const std::string &db_path, std::v
 
     TableSchema schema(read_schema(db_path, page_size));
     size_t offset = 0;
-    std::cout << "SCHEMA + RUN" << std::endl;
     SearchResult result = searchMultiPrimaryKeys(db_path, schema, *schema.clustered_page_ref, primaryKeys, page_size, offset);
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -216,6 +215,81 @@ SearchResult searchPrimaryKey(const std::string &db_path, const TableSchema &sch
         }
         return currentResult;
     }
+    else if (param.comparator == Comparator::EqualNon || param.comparator == Comparator::NonEqual || param.comparator == Comparator::NonNon || param.comparator == Comparator::EqualEqual)
+    {
+        SearchResult currentResult;
+        bool finished = false;
+        for (size_t i = 0; i < items.size(); i++)
+        {
+            if (items[i].get(*param.columnIndex) == *param.compareTo)
+            {
+                if (param.comparator == Comparator::EqualNon || param.comparator == Comparator::EqualEqual)
+                {
+                    dbone::insert::Row row = items[i].toRow(schema);
+                    currentResult.rows.push_back(row);
+                }
+                // if (clusteredIndexNode.get_page_pointers()[i] != 0)
+                // {
+                //     SearchResult result = searchPrimaryKey(db_path, schema, clusteredIndexNode.get_page_pointers()[i], param, page_size);
+                //     currentResult.rows.insert(currentResult.rows.end(), result.rows.begin(), result.rows.end());
+                // }
+            }
+            else if (items[i].get(*param.columnIndex) > *param.compareTo)
+            {
+                if (items[i].get(*param.columnIndex) < **param.compareTo2)
+                {
+                    // in range - add
+                    dbone::insert::Row row = items[i].toRow(schema);
+                    currentResult.rows.push_back(row);
+
+                    if (clusteredIndexNode.get_page_pointers()[i] != 0)
+                    {
+                        SearchResult result = searchPrimaryKey(db_path, schema, clusteredIndexNode.get_page_pointers()[i], param, page_size);
+                        currentResult.rows.insert(currentResult.rows.end(), result.rows.begin(), result.rows.end());
+                    }
+                }
+                else
+                {
+                    if (items[i].get(*param.columnIndex) == **param.compareTo2)
+                    {
+                        // ends equal
+                        if (param.comparator == Comparator::NonEqual || param.comparator == Comparator::EqualEqual)
+                        {
+                            dbone::insert::Row row = items[i].toRow(schema);
+                            currentResult.rows.push_back(row);
+                        }
+
+                        if (clusteredIndexNode.get_page_pointers()[i] != 0)
+                        {
+                            SearchResult result = searchPrimaryKey(db_path, schema, clusteredIndexNode.get_page_pointers()[i], param, page_size);
+                            currentResult.rows.insert(currentResult.rows.end(), result.rows.begin(), result.rows.end());
+                        }
+                    }
+                    else
+                    {
+                        if (clusteredIndexNode.get_page_pointers()[i] != 0)
+                        {
+                            SearchResult result = searchPrimaryKey(db_path, schema, clusteredIndexNode.get_page_pointers()[i], param, page_size);
+                            currentResult.rows.insert(currentResult.rows.end(), result.rows.begin(), result.rows.end());
+                        }
+                        // over
+                        finished = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!finished)
+        {
+            if (clusteredIndexNode.get_page_pointers()[items.size()] != 0)
+            {
+                SearchResult result = searchPrimaryKey(db_path, schema, clusteredIndexNode.get_page_pointers()[items.size()], param, page_size);
+                currentResult.rows.insert(currentResult.rows.end(), result.rows.begin(), result.rows.end());
+            }
+        }
+        return currentResult;
+    }
 
     return SearchResult();
 }
@@ -318,13 +392,11 @@ static void searchIndexedAcc(const std::string &db_path, const TableSchema &sche
                 checkEnd = false;
                 if (secondaryIndexNode.page_pointers()[i] != 0)
                 {
-                    std::cout << "NEW SEARCH" << std::endl;
                     searchIndexedAcc(db_path, schema, secondaryIndexNode.page_pointers()[i], param, indexed_col, pk_col, page_size, outKeys);
                     break;
                 }
                 else
                 {
-                    std::cout << "BREAK" << std::endl;
                     break;
                 }
             }
@@ -383,14 +455,21 @@ static void searchIndexedAcc(const std::string &db_path, const TableSchema &sche
                 searchIndexedAcc(db_path, schema, secondaryIndexNode.page_pointers()[entries.size()], param, indexed_col, pk_col, page_size, outKeys);
         }
     }
+    else if (param.comparator == Comparator::Greater || param.comparator == Comparator::GreaterEqual)
+    {
+    }
 }
 
 SearchResult searchIndexed(const std::string &db_path, const TableSchema &schema, const Column &indexed_col, const Column &pk_col, const SearchParam &param, size_t index, uint32_t page_size)
 {
     std::vector<std::unique_ptr<DataType>> outKeys;
     searchIndexedAcc(db_path, schema, schema.index_page_refs.at(index), param, indexed_col, pk_col, page_size, outKeys);
-    std::cout << "Keys size: " << outKeys.size() << std::endl;
-    // std::cout << outKeys[0].get()->default_value_str() << std::endl;
+    std::sort(outKeys.begin(), outKeys.end(),
+              [](const std::unique_ptr<DataType> &a, const std::unique_ptr<DataType> &b)
+              {
+                  return *a < *b; // assuming DataType has operator<
+              });
+    std::cout << "outKeys.size(): " << outKeys.size() << std::endl;
     size_t val = 0;
     return searchMultiPrimaryKeys(db_path, schema, *schema.clustered_page_ref, outKeys, page_size, val);
 }
@@ -403,8 +482,6 @@ SearchResult dbone::search::searchItem(const std::string &db_path, const std::ve
 
     TableSchema schema(read_schema(db_path, page_size));
 
-    std::cout << schema.columns[0].get()->name() << std::endl;
-
     std::unordered_map<uint16_t, std::unique_ptr<Column>> primaryColumns;
 
     auto &columns = schema.columns;
@@ -416,8 +493,6 @@ SearchResult dbone::search::searchItem(const std::string &db_path, const std::ve
             primaryColumns[i] = column->clone(); // deep copy
         }
     }
-
-    std::cout << schema.columns[0].get()->name() << std::endl;
 
     if (primaryColumns.size() == 1)
     {
@@ -439,7 +514,10 @@ SearchResult dbone::search::searchItem(const std::string &db_path, const std::ve
                 paramCopy.columnIndex = index;
                 paramCopy.comparator = searchParam.comparator;
                 paramCopy.compareTo = searchParam.compareTo->clone();
-                // paramCopy.ptr left empty (or set if needed)
+                if (searchParam.compareTo2)
+                {
+                    paramCopy.compareTo2 = (*searchParam.compareTo2)->clone();
+                }
 
                 SearchResult result = searchPrimaryKey(db_path, schema, *schema.clustered_page_ref, paramCopy, page_size);
 
@@ -470,7 +548,6 @@ SearchResult dbone::search::searchItem(const std::string &db_path, const std::ve
                 }
                 else
                 {
-                    std::cout << "SEARCHING INDEXED" << std::endl;
                     result = searchIndexed(db_path, schema, *schema.columns[*paramCopy.columnIndex], *column, paramCopy, *paramCopy.columnIndex, page_size);
                 }
 
