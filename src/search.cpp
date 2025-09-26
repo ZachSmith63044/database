@@ -302,13 +302,14 @@ static void searchNonIndexedAcc(
     uint32_t page_size,
     std::vector<dbone::insert::Row> &outRows)
 {
+    std::cout << "SEASRCHING NON INDEXEED" << std::endl;
     ClusteredIndexNode clusteredIndexNode =
         ClusteredIndexNode::load(db_path, currentPage, schema, page_size);
 
     std::vector<DataRow> &items = clusteredIndexNode.get_items();
     std::vector<uint32_t> &pagePointers = clusteredIndexNode.get_page_pointers();
 
-    const DataType &compareVal = *param.compareTo; // bind once
+    const DataType &compareVal = *param.compareTo;
 
     for (size_t i = 0; i < items.size(); ++i)
     {
@@ -345,6 +346,34 @@ static void searchNonIndexedAcc(
         else if (param.comparator == Comparator::Equal)
         {
             if (cell == compareVal)
+            {
+                outRows.emplace_back(items[i].toRow(schema));
+            }
+        }
+        else if (param.comparator == Comparator::EqualEqual)
+        {
+            if (cell <= **param.compareTo2 && cell >= *param.compareTo)
+            {
+                outRows.emplace_back(items[i].toRow(schema));
+            }
+        }
+        else if (param.comparator == Comparator::NonNon)
+        {
+            if (cell < **param.compareTo2 && cell > *param.compareTo)
+            {
+                outRows.emplace_back(items[i].toRow(schema));
+            }
+        }
+        else if (param.comparator == Comparator::EqualNon)
+        {
+            if (cell < **param.compareTo2 && cell >= *param.compareTo)
+            {
+                outRows.emplace_back(items[i].toRow(schema));
+            }
+        }
+        else if (param.comparator == Comparator::NonEqual)
+        {
+            if (cell <= **param.compareTo2 && cell > *param.compareTo)
             {
                 outRows.emplace_back(items[i].toRow(schema));
             }
@@ -507,13 +536,24 @@ SearchResult dbone::search::searchItem(const std::string &db_path, const std::ve
         std::string columnName = column->name();
         for (const SearchParam &searchParam : queries) // keep const
         {
+            SearchParam paramCopy;
+            paramCopy.columnName = searchParam.columnName;
+            for (size_t i = 0; i < schema.columns.size(); i++)
+            {
+                if (schema.columns[i].get()->name() == searchParam.columnName)
+                {
+                    paramCopy.columnIndex = i;
+                }
+            }
+            paramCopy.comparator = searchParam.comparator;
+            paramCopy.compareTo = searchParam.compareTo->clone();
+            if (searchParam.compareTo2)
+            {
+                paramCopy.compareTo2 = (*searchParam.compareTo2)->clone();
+            }
+
             if (searchParam.columnName == columnName)
             {
-                SearchParam paramCopy; // construct manually
-                paramCopy.columnName = searchParam.columnName;
-                paramCopy.columnIndex = index;
-                paramCopy.comparator = searchParam.comparator;
-                paramCopy.compareTo = searchParam.compareTo->clone();
                 if (searchParam.compareTo2)
                 {
                     paramCopy.compareTo2 = (*searchParam.compareTo2)->clone();
@@ -528,18 +568,6 @@ SearchResult dbone::search::searchItem(const std::string &db_path, const std::ve
             }
             else
             {
-                SearchParam paramCopy;
-                paramCopy.columnName = searchParam.columnName;
-                for (size_t i = 0; i < schema.columns.size(); i++)
-                {
-                    if (schema.columns[i].get()->name() == searchParam.columnName)
-                    {
-                        paramCopy.columnIndex = i;
-                    }
-                }
-                paramCopy.comparator = searchParam.comparator;
-                paramCopy.compareTo = searchParam.compareTo->clone();
-
                 SearchResult result;
 
                 if (schema.index_page_refs.find(*paramCopy.columnIndex) == schema.index_page_refs.end())
