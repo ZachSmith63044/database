@@ -37,7 +37,7 @@ int make_table(uint32_t page_size)
 {
     TableSchema s;
     s.table_name = "orders";
-    s.columns.emplace_back(std::make_unique<BigIntColumn>("id", /*nullable=*/false, /*pk=*/false, /*uniq=*/true, false, /*default=*/4342596));
+    s.columns.emplace_back(std::make_unique<BigIntColumn>("id", /*nullable=*/false, /*pk=*/false, /*uniq=*/true, true, /*default=*/4342596));
     s.columns.emplace_back(std::make_unique<VarCharColumn>("code", 250, /*nullable=*/false, /*pk=*/true, /*uniq=*/true, false, /*default=*/"ABCDEFGH"));
     s.min_length = 128;
     std::string err;
@@ -117,17 +117,18 @@ int main(int argc, char **argv)
     // std::cout << "BEFORE" << std::endl;
 
 
-    std::cout << "STARTING" << std::endl;
+    // std::cout << "STARTING" << std::endl;
     SearchParam param;
     param.columnName = "id";
-    param.comparator = Comparator::NonEqual;
-    param.compareTo = std::make_unique<BigIntType>(39);
-    param.compareTo2 = std::make_unique<BigIntType>(490);
-    // param.compareTo = std::make_unique<VarCharType>("C0000132", 250);
+    param.comparator = Comparator::NonNon;
+    param.compareTo = std::make_unique<BigIntType>(4000);
+    param.compareTo2 = std::make_unique<BigIntType>(5000);
+    // param.compareTo = std::make_unique<VarCharType>("C0009800", 250);
     // param.compareTo2 = std::make_unique<VarCharType>("C0000192", 250);
     std::vector<SearchParam> params;
     params.push_back(std::move(param));
     SearchResult result = dbone::search::searchItem("C:/Users/zakha/Documents/15. Database+/store/table.efdb", params, PAGE_SIZE_DEFAULT);
+    
     std::cout << result.rows.size() << std::endl;
     for (dbone::insert::Row row : result.rows)
     {
@@ -138,9 +139,22 @@ int main(int argc, char **argv)
         }
         std::cout << "}" << std::endl;
     }
+
     std::cout << result.rows.size() << std::endl;
     std::cout << result.timeTaken << std::endl;
 
 
     return 0;
 }
+
+
+
+// TO DO:
+// - add indexed double comparator ✅
+// - add unique insertion (can't insert what already exists for unique)
+// - add updating rows
+// - deleting rows
+// - deleting pages
+// - string query to code
+// - functions to serve on localhost
+// - serve on lightsail

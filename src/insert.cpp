@@ -420,7 +420,7 @@ namespace dbone::insert
         return false;
     }
 
-    bool split_secondary_node(uint32_t above_page_ref, SecondaryIndexNode &originalNode, const TableSchema &schema, const std::string &db_path, const Column &indexed_col, const Column &pk_col, uint32_t page_size)
+    uint32_t split_secondary_node(uint32_t above_page_ref, SecondaryIndexNode &originalNode, const TableSchema &schema, const std::string &db_path, const Column &indexed_col, const Column &pk_col, uint32_t page_size)
     {
         std::vector<uint32_t> otherAvailablePages = originalNode.get_available_pages_index();
         otherAvailablePages.insert(otherAvailablePages.begin(), *originalNode.original_page());
@@ -429,12 +429,24 @@ namespace dbone::insert
 
         SecondaryIndexNode page1;
         SecondaryIndexNode page2;
+        for (int i = 0 ; i < originalNode.entries().size(); i++)
+        {
+            std::cout << "0: " << originalNode.entries()[i].value.get()->default_value_str() << std::endl;
+        }
         for (int i = 0; i < schema.min_length; i++)
         {
             page1.add_entry(std::move(originalNode.entries()[i]));
             page1.add_pointer(originalNode.page_pointers()[i]);
             page2.add_entry(std::move(originalNode.entries()[i + 1 + schema.min_length]));
             page2.add_pointer(originalNode.page_pointers()[i + schema.min_length + 1]);
+        }
+        for (int i = 0; i < schema.min_length; i++)
+        {
+            std::cout << "1: " << page1.entries()[i].value.get()->default_value_str() << std::endl;
+        }
+        for (int i = 0; i < schema.min_length; i++)
+        {
+            std::cout << "2: " << page2.entries()[i].value.get()->default_value_str() << std::endl;
         }
         page1.add_pointer(originalNode.page_pointers()[schema.min_length]);
         page2.add_pointer(originalNode.page_pointers()[schema.min_length * 2]);
@@ -476,7 +488,7 @@ namespace dbone::insert
 
         forceInsertIntoIndex(db_path, above_page_ref, rowPush, page_size, schema, indexed_col, pk_col, page1Ptr, page2Ptr);
 
-        return true;
+        return page2Ptr;
     }
 
     bool insertIntoIndex(const std::string &db_path, uint32_t page_num, const Row &row, uint32_t page_size, const TableSchema &schema, const Column &indexed_col, const Column &pk_col, uint32_t previous_page_ref = 0)
@@ -488,6 +500,10 @@ namespace dbone::insert
 
         if (secondaryIndexNode.entries().size() >= schema.min_length * 2 + 1)
         {
+            if (secondaryIndexNode.entries().size() > schema.min_length * 2 + 1)
+            {
+                std::cout << "BIG ERROR" << std::endl;
+            }
             if (previous_page_ref == 0)
             {
                 split_secondary_root(page_num, secondaryIndexNode, schema, db_path, page_size);
@@ -495,8 +511,9 @@ namespace dbone::insert
             }
             else
             {
-                split_secondary_node(previous_page_ref, secondaryIndexNode, schema, db_path, indexed_col, pk_col, page_size);
-                return insertIntoIndex(db_path, page_num, row, page_size, schema, indexed_col, pk_col, previous_page_ref);
+                std::cout << "SPLITTING" << std::endl;
+                uint32_t pageN = split_secondary_node(previous_page_ref, secondaryIndexNode, schema, db_path, indexed_col, pk_col, page_size);
+                return insertIntoIndex(db_path, previous_page_ref, row, page_size, schema, indexed_col, pk_col, previous_page_ref);
             }
         }
 

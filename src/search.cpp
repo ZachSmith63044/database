@@ -409,7 +409,8 @@ static void searchIndexedAcc(const std::string &db_path, const TableSchema &sche
 {
     SecondaryIndexNode secondaryIndexNode = SecondaryIndexNode::load(db_path, currentPage, schema, indexed_col, pk_col, page_size);
     std::vector<IndexEntry> entries = secondaryIndexNode.entries();
-    // std::cout << "ENTRY SIZE: " << entries.size() << std::endl;
+    std::cout << "ENTRY SIZE: " << entries.size() << std::endl;
+    std::cout << "FINAL ENTRY: " << entries[entries.size() - 1].value.get()->default_value_str() << std::endl;
     bool checkEnd = true;
     if (param.comparator == Comparator::Equal)
     {
@@ -486,6 +487,93 @@ static void searchIndexedAcc(const std::string &db_path, const TableSchema &sche
     }
     else if (param.comparator == Comparator::Greater || param.comparator == Comparator::GreaterEqual)
     {
+        for (size_t i = 0; i < entries.size(); i++)
+        {
+            std::cout << entries[i].value.get()->default_value_str() << std::endl;
+            if (*entries[i].value > *param.compareTo)
+            {
+                if (secondaryIndexNode.page_pointers()[i] != 0)
+                {
+                    std::cout << "DESCENDING FROM NODE: " << entries[i].value.get()->default_value_str() << std::endl;
+                    searchIndexedAcc(db_path, schema, secondaryIndexNode.page_pointers()[i], param, indexed_col, pk_col, page_size, outKeys);
+                }
+                for (auto &key : entries[i].primary_keys)
+                {
+                    outKeys.push_back(std::move(key));
+                }
+            }
+            else if (*entries[i].value == *param.compareTo)
+            {
+                if (secondaryIndexNode.page_pointers()[i] != 0)
+                    searchIndexedAcc(db_path, schema, secondaryIndexNode.page_pointers()[i], param, indexed_col, pk_col, page_size, outKeys);
+                if (param.comparator == Comparator::GreaterEqual)
+                {
+                    for (auto &key : entries[i].primary_keys)
+                    {
+                        outKeys.push_back(std::move(key));
+                    }
+                }
+            }
+            else
+            {
+            }
+        }
+        if (checkEnd)
+        {
+            if (secondaryIndexNode.page_pointers()[entries.size()] != 0)
+                searchIndexedAcc(db_path, schema, secondaryIndexNode.page_pointers()[entries.size()], param, indexed_col, pk_col, page_size, outKeys);
+        }
+    }
+    else if (param.comparator == Comparator::EqualEqual || param.comparator == Comparator::NonEqual || param.comparator == Comparator::EqualNon || param.comparator == Comparator::NonNon)
+    {
+        for (size_t i = 0; i < entries.size(); i++)
+        {
+            if (*entries[i].value == *param.compareTo)
+            {
+                if (param.comparator == Comparator::EqualEqual || param.comparator == Comparator::EqualNon)
+                {
+                    for (auto &key : entries[i].primary_keys)
+                    {
+                        outKeys.push_back(std::move(key));
+                    }
+                }
+            }
+            else if (*entries[i].value == **param.compareTo2)
+            {
+                if (secondaryIndexNode.page_pointers()[i] != 0)
+                    searchIndexedAcc(db_path, schema, secondaryIndexNode.page_pointers()[i], param, indexed_col, pk_col, page_size, outKeys);
+
+                if (param.comparator == Comparator::NonEqual || param.comparator == Comparator::EqualEqual)
+                {
+                    for (auto &key : entries[i].primary_keys)
+                    {
+                        outKeys.push_back(std::move(key));
+                    }
+                }
+            }
+            else if (*entries[i].value > *param.compareTo && *entries[i].value < **param.compareTo2)
+            {
+                if (secondaryIndexNode.page_pointers()[i] != 0)
+                    searchIndexedAcc(db_path, schema, secondaryIndexNode.page_pointers()[i], param, indexed_col, pk_col, page_size, outKeys);
+
+                for (auto &key : entries[i].primary_keys)
+                {
+                    outKeys.push_back(std::move(key));
+                }
+            }
+            else if (*entries[i].value > **param.compareTo2)
+            {
+                if (secondaryIndexNode.page_pointers()[i] != 0)
+                    searchIndexedAcc(db_path, schema, secondaryIndexNode.page_pointers()[i], param, indexed_col, pk_col, page_size, outKeys);
+                checkEnd = false;
+                break;
+            }
+        }
+        if (checkEnd)
+        {
+            if (secondaryIndexNode.page_pointers()[entries.size()] != 0)
+                searchIndexedAcc(db_path, schema, secondaryIndexNode.page_pointers()[entries.size()], param, indexed_col, pk_col, page_size, outKeys);
+        }
     }
 }
 
