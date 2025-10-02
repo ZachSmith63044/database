@@ -55,6 +55,8 @@ namespace dbone::search
     /// - Loads schema from path
     /// - Calls validate_row
     SearchResult searchItem(const std::string &db_path, const std::vector<SearchParam>& queries, uint32_t page_size);
+
+    
     
     SearchResult searchPrimaryKeys(const std::string &db_path, std::vector<std::unique_ptr<DataType>> &primaryKeys, uint32_t page_size);
 

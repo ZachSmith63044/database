@@ -20,6 +20,7 @@ add_library(dbone
   src/clustered_index_node.cpp
   src/secondary_index_node.cpp
   src/availablePages.cpp
+  src/uniqueSearch.cpp
   src/insert.cpp
   src/search.cpp
   src/serialize.cpp

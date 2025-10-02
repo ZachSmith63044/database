@@ -184,6 +184,7 @@ TableSchema read_schema(const std::string &file, uint32_t page_size)
         }
     }
     schema.min_length = readU32(schema_payload, off);
+    schema.min_length_index = schema.min_length * 2;
 
     for (size_t i = 0; i < indexColumns.size(); i++)
     {

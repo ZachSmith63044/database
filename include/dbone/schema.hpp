@@ -22,6 +22,7 @@ struct TableSchema
     std::string table_name;
     std::vector<std::unique_ptr<Column>> columns;
     uint32_t min_length{};
+    uint32_t min_length_index{};
     std::optional<uint32_t> clustered_page_ref;
     std::optional<uint32_t> available_pages_ref;
     std::unordered_map<size_t, uint32_t> index_page_refs{};
@@ -32,6 +33,7 @@ inline std::ostream &operator<<(std::ostream &os, const TableSchema &schema)
 {
     os << "TableSchema(" << schema.table_name << ")\n";
     os << "  min_length: " << schema.min_length << "\n";
+    os << "  min_length_index: " << schema.min_length_index << "\n";
 
     os << "  clustered_page_ref: ";
     if (schema.clustered_page_ref)

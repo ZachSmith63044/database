@@ -302,7 +302,6 @@ static void searchNonIndexedAcc(
     uint32_t page_size,
     std::vector<dbone::insert::Row> &outRows)
 {
-    std::cout << "SEASRCHING NON INDEXEED" << std::endl;
     ClusteredIndexNode clusteredIndexNode =
         ClusteredIndexNode::load(db_path, currentPage, schema, page_size);
 
@@ -409,8 +408,6 @@ static void searchIndexedAcc(const std::string &db_path, const TableSchema &sche
 {
     SecondaryIndexNode secondaryIndexNode = SecondaryIndexNode::load(db_path, currentPage, schema, indexed_col, pk_col, page_size);
     std::vector<IndexEntry> entries = secondaryIndexNode.entries();
-    std::cout << "ENTRY SIZE: " << entries.size() << std::endl;
-    std::cout << "FINAL ENTRY: " << entries[entries.size() - 1].value.get()->default_value_str() << std::endl;
     bool checkEnd = true;
     if (param.comparator == Comparator::Equal)
     {
@@ -489,12 +486,10 @@ static void searchIndexedAcc(const std::string &db_path, const TableSchema &sche
     {
         for (size_t i = 0; i < entries.size(); i++)
         {
-            std::cout << entries[i].value.get()->default_value_str() << std::endl;
             if (*entries[i].value > *param.compareTo)
             {
                 if (secondaryIndexNode.page_pointers()[i] != 0)
                 {
-                    std::cout << "DESCENDING FROM NODE: " << entries[i].value.get()->default_value_str() << std::endl;
                     searchIndexedAcc(db_path, schema, secondaryIndexNode.page_pointers()[i], param, indexed_col, pk_col, page_size, outKeys);
                 }
                 for (auto &key : entries[i].primary_keys)

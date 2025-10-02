@@ -113,22 +113,20 @@ int main(int argc, char **argv)
 
     // std::cout << result.timeTaken << std::endl;
 
-
     // std::cout << "BEFORE" << std::endl;
-
 
     // std::cout << "STARTING" << std::endl;
     SearchParam param;
     param.columnName = "id";
     param.comparator = Comparator::NonNon;
-    param.compareTo = std::make_unique<BigIntType>(4000);
-    param.compareTo2 = std::make_unique<BigIntType>(5000);
+    param.compareTo = std::make_unique<BigIntType>(-10);
+    param.compareTo2 = std::make_unique<BigIntType>(10);
     // param.compareTo = std::make_unique<VarCharType>("C0009800", 250);
     // param.compareTo2 = std::make_unique<VarCharType>("C0000192", 250);
     std::vector<SearchParam> params;
     params.push_back(std::move(param));
     SearchResult result = dbone::search::searchItem("C:/Users/zakha/Documents/15. Database+/store/table.efdb", params, PAGE_SIZE_DEFAULT);
-    
+
     std::cout << result.rows.size() << std::endl;
     for (dbone::insert::Row row : result.rows)
     {
@@ -143,15 +141,22 @@ int main(int argc, char **argv)
     std::cout << result.rows.size() << std::endl;
     std::cout << result.timeTaken << std::endl;
 
+    dbone::insert::Row row1 = {
+        {"id", std::to_string(-2)},
+        {"code", make_code(10003)}};
+
+    auto result2 = dbone::insert::insert(
+        "C:/Users/zakha/Documents/15. Database+/store/table.efdb",
+        row1,
+        PAGE_SIZE_DEFAULT);
+    std::cout << result2.error << std::endl;
 
     return 0;
 }
 
-
-
 // TO DO:
 // - add indexed double comparator ✅
-// - add unique insertion (can't insert what already exists for unique)
+// - add unique insertion (can't insert what already exists for unique) ✅
 // - add updating rows
 // - deleting rows
 // - deleting pages
