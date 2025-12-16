@@ -33,9 +33,9 @@ public:
 
     void print() const;
 
-    dbone::insert::Row toRow(const TableSchema& schema)
+    Row toRow(const TableSchema& schema)
     {
-        dbone::insert::Row row;
+        Row row;
         for (auto &[key, value] : values_)
         {
             uint16_t id = key;
@@ -48,7 +48,7 @@ public:
     std::unordered_map<uint16_t, std::unique_ptr<DataType>> fetchValues() { return std::move(values_); }
 
     // Conversion from Row + Schema
-    static DataRow fromRow(const dbone::insert::Row &row, const TableSchema &schema);
+    static DataRow fromRow(const Row &row, const TableSchema &schema);
     static DataRow bits_to_row(const std::vector<uint8_t> &payload, size_t &ref, const TableSchema &schema);
 
 private:

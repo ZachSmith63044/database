@@ -594,8 +594,6 @@ namespace dbone::insert
             return validationResult;
         }
 
-        std::cout << "AFTER" << std::endl;
-
         insertInto(db_path, *schema.clustered_page_ref, row, page_size, schema);
 
         Column *pk_col = nullptr;

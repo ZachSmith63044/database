@@ -37,7 +37,7 @@ void DataRow::to_bits(BitBuffer &buf) const
 }
 
 // Convert Row (string->string) into DataRow using TableSchema
-DataRow DataRow::fromRow(const dbone::insert::Row &row, const TableSchema &schema)
+DataRow DataRow::fromRow(const Row &row, const TableSchema &schema)
 {
     DataRow dr;
 

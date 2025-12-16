@@ -13,6 +13,8 @@
 #include <iostream>
 #include <chrono>
 #include <unordered_set>
+#include "dbone/delete.hpp"
+#include <filesystem>
 
 namespace fs = std::filesystem;
 
@@ -41,7 +43,9 @@ int make_table(uint32_t page_size)
     s.columns.emplace_back(std::make_unique<VarCharColumn>("code", 250, /*nullable=*/false, /*pk=*/true, /*uniq=*/true, false, /*default=*/"ABCDEFGH"));
     s.min_length = 128;
     std::string err;
-    bool ok = create_table(s, "C:/Users/zakha/Documents/15. Database+/store", &err, page_size);
+
+    std::filesystem::path db_path = "store/table.efdb";
+    bool ok = create_table(s, db_path.string(), &err, page_size);
     if (!ok)
     {
         std::cerr << "create_table failed: " << err << "\n";
@@ -59,14 +63,15 @@ std::string make_code(size_t id)
 void insert_table(size_t n, uint32_t page_size)
 {
     auto start = std::chrono::high_resolution_clock::now();
+    std::filesystem::path db_path = "store/table.efdb";
     for (size_t i = 0; i < n; i++)
     {
-        dbone::insert::Row row1 = {
+        Row row1 = {
             {"id", std::to_string(i)},
             {"code", make_code(i)}};
 
         auto result = dbone::insert::insert(
-            "C:/Users/zakha/Documents/15. Database+/store/table.efdb",
+            db_path.string(),
             row1,
             page_size);
 
@@ -85,14 +90,43 @@ void insert_table(size_t n, uint32_t page_size)
     std::cout << "Insert took " << duration.count() / 1000.0f << " milloseconds\n";
 }
 
+void searchS(uint32_t PAGE_SIZE_DEFAULT)
+{
+    SearchParam param;
+    param.columnName = "id";
+    param.comparator = Comparator::NonNon;
+    param.compareTo = std::make_unique<BigIntType>(-10);
+    param.compareTo2 = std::make_unique<BigIntType>(10);
+    // param.compareTo = std::make_unique<VarCharType>("C0009800", 250);
+    // param.compareTo2 = std::make_unique<VarCharType>("C0000192", 250);
+    std::vector<SearchParam> params;
+    params.push_back(std::move(param));
+    std::filesystem::path db_path = "store/table.efdb";
+    SearchResult result = dbone::search::searchItem(db_path.string(), params, PAGE_SIZE_DEFAULT);
+
+    std::cout << result.rows.size() << std::endl;
+    for (Row row : result.rows)
+    {
+        std::cout << "{ ";
+        for (const auto &[key, value] : row)
+        {
+            std::cout << key << ": " << value << ", ";
+        }
+        std::cout << "}" << std::endl;
+    }
+
+    std::cout << result.rows.size() << std::endl;
+    std::cout << result.timeTaken << std::endl;
+}
+
 int main(int argc, char **argv)
 {
 
     uint32_t PAGE_SIZE_DEFAULT = 4096;
 
-    // make_table(PAGE_SIZE_DEFAULT);
+    make_table(PAGE_SIZE_DEFAULT);
 
-    // insert_table(10000, PAGE_SIZE_DEFAULT);
+    insert_table(10000, PAGE_SIZE_DEFAULT);
 
     // std::cout << "INSERTED" << std::endl;
 
@@ -101,7 +135,7 @@ int main(int argc, char **argv)
     // primaryKeys.push_back(std::make_unique<VarCharType>("C0000407", 250));
     // SearchResult result = dbone::search::searchPrimaryKeys("C:/Users/zakha/Documents/15. Database+/store/table.efdb", primaryKeys, PAGE_SIZE_DEFAULT);
 
-    // for (dbone::insert::Row row : result.rows)
+    // for (Row row : result.rows)
     // {
     //     std::cout << "{ ";
     //     for (const auto &[key, value] : row)
@@ -116,40 +150,18 @@ int main(int argc, char **argv)
     // std::cout << "BEFORE" << std::endl;
 
     // std::cout << "STARTING" << std::endl;
-    SearchParam param;
-    param.columnName = "id";
-    param.comparator = Comparator::NonNon;
-    param.compareTo = std::make_unique<BigIntType>(-10);
-    param.compareTo2 = std::make_unique<BigIntType>(10);
-    // param.compareTo = std::make_unique<VarCharType>("C0009800", 250);
-    // param.compareTo2 = std::make_unique<VarCharType>("C0000192", 250);
-    std::vector<SearchParam> params;
-    params.push_back(std::move(param));
-    SearchResult result = dbone::search::searchItem("C:/Users/zakha/Documents/15. Database+/store/table.efdb", params, PAGE_SIZE_DEFAULT);
 
-    std::cout << result.rows.size() << std::endl;
-    for (dbone::insert::Row row : result.rows)
-    {
-        std::cout << "{ ";
-        for (const auto &[key, value] : row)
-        {
-            std::cout << key << ": " << value << ", ";
-        }
-        std::cout << "}" << std::endl;
-    }
+    // Row row1 = {
+    //     {"id", std::to_string(-1)},
+    //     {"code", make_code(10003)}};
 
-    std::cout << result.rows.size() << std::endl;
-    std::cout << result.timeTaken << std::endl;
+    // auto result2 = dbone::insert::insert(
+    //     "C:/Users/zakha/Documents/15. Database+/store/table.efdb",
+    //     row1,
+    //     PAGE_SIZE_DEFAULT);
+    // std::cout << result2.error << std::endl;
 
-    dbone::insert::Row row1 = {
-        {"id", std::to_string(-2)},
-        {"code", make_code(10003)}};
-
-    auto result2 = dbone::insert::insert(
-        "C:/Users/zakha/Documents/15. Database+/store/table.efdb",
-        row1,
-        PAGE_SIZE_DEFAULT);
-    std::cout << result2.error << std::endl;
+    // dbone::delete_db::delete_primary_key("C:/Users/zakha/Documents/15. Database+/store/table.efdb", std::make_unique<VarCharType>("C0000100", 250), PAGE_SIZE_DEFAULT);
 
     return 0;
 }
@@ -157,9 +169,15 @@ int main(int argc, char **argv)
 // TO DO:
 // - add indexed double comparator ✅
 // - add unique insertion (can't insert what already exists for unique) ✅
-// - add updating rows
 // - deleting rows
+// - add updating rows
 // - deleting pages
 // - string query to code
 // - functions to serve on localhost
 // - serve on lightsail
+
+// LATER OPTIMISATIONS/SETTINGS:
+// - RAM store
+// - full RAM dependency?
+// - interlink tables - local interlinking first
+// - proper interlinked tables

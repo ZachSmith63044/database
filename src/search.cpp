@@ -88,7 +88,7 @@ SearchResult dbone::search::searchPrimaryKeys(const std::string &db_path, std::v
 {
     auto start = std::chrono::high_resolution_clock::now();
 
-    std::vector<dbone::insert::Row> rows;
+    std::vector<Row> rows;
 
     TableSchema schema(read_schema(db_path, page_size));
     size_t offset = 0;
@@ -120,8 +120,8 @@ SearchResult searchPrimaryKey(const std::string &db_path, const TableSchema &sch
             else if (items[i].get(*param.columnIndex) == *param.compareTo)
             {
                 SearchResult result;
-                std::vector<dbone::insert::Row> rows;
-                dbone::insert::Row row = items[i].toRow(schema);
+                std::vector<Row> rows;
+                Row row = items[i].toRow(schema);
                 rows.push_back(row);
                 result.rows = rows;
                 return result;
@@ -147,7 +147,7 @@ SearchResult searchPrimaryKey(const std::string &db_path, const TableSchema &sch
                     SearchResult result = searchPrimaryKey(db_path, schema, clusteredIndexNode.get_page_pointers()[i], param, page_size);
                     currentResult.rows.insert(currentResult.rows.end(), result.rows.begin(), result.rows.end());
                 }
-                dbone::insert::Row row = items[i].toRow(schema);
+                Row row = items[i].toRow(schema);
                 currentResult.rows.push_back(row);
             }
             else if (items[i].get(*param.columnIndex) == *param.compareTo)
@@ -159,7 +159,7 @@ SearchResult searchPrimaryKey(const std::string &db_path, const TableSchema &sch
                 }
                 if (param.comparator == Comparator::LessEqual)
                 {
-                    dbone::insert::Row row = items[i].toRow(schema);
+                    Row row = items[i].toRow(schema);
                     currentResult.rows.push_back(row);
                 }
             }
@@ -193,7 +193,7 @@ SearchResult searchPrimaryKey(const std::string &db_path, const TableSchema &sch
             {
                 if (param.comparator == Comparator::GreaterEqual)
                 {
-                    dbone::insert::Row row = items[i].toRow(schema);
+                    Row row = items[i].toRow(schema);
                     currentResult.rows.push_back(row);
                 }
             }
@@ -204,7 +204,7 @@ SearchResult searchPrimaryKey(const std::string &db_path, const TableSchema &sch
                     SearchResult result = searchPrimaryKey(db_path, schema, clusteredIndexNode.get_page_pointers()[i], param, page_size);
                     currentResult.rows.insert(currentResult.rows.end(), result.rows.begin(), result.rows.end());
                 }
-                dbone::insert::Row row = items[i].toRow(schema);
+                Row row = items[i].toRow(schema);
                 currentResult.rows.push_back(row);
             }
         }
@@ -225,7 +225,7 @@ SearchResult searchPrimaryKey(const std::string &db_path, const TableSchema &sch
             {
                 if (param.comparator == Comparator::EqualNon || param.comparator == Comparator::EqualEqual)
                 {
-                    dbone::insert::Row row = items[i].toRow(schema);
+                    Row row = items[i].toRow(schema);
                     currentResult.rows.push_back(row);
                 }
                 // if (clusteredIndexNode.get_page_pointers()[i] != 0)
@@ -239,7 +239,7 @@ SearchResult searchPrimaryKey(const std::string &db_path, const TableSchema &sch
                 if (items[i].get(*param.columnIndex) < **param.compareTo2)
                 {
                     // in range - add
-                    dbone::insert::Row row = items[i].toRow(schema);
+                    Row row = items[i].toRow(schema);
                     currentResult.rows.push_back(row);
 
                     if (clusteredIndexNode.get_page_pointers()[i] != 0)
@@ -255,7 +255,7 @@ SearchResult searchPrimaryKey(const std::string &db_path, const TableSchema &sch
                         // ends equal
                         if (param.comparator == Comparator::NonEqual || param.comparator == Comparator::EqualEqual)
                         {
-                            dbone::insert::Row row = items[i].toRow(schema);
+                            Row row = items[i].toRow(schema);
                             currentResult.rows.push_back(row);
                         }
 
@@ -300,7 +300,7 @@ static void searchNonIndexedAcc(
     uint32_t currentPage,
     const SearchParam &param,
     uint32_t page_size,
-    std::vector<dbone::insert::Row> &outRows)
+    std::vector<Row> &outRows)
 {
     ClusteredIndexNode clusteredIndexNode =
         ClusteredIndexNode::load(db_path, currentPage, schema, page_size);
@@ -590,7 +590,7 @@ SearchResult dbone::search::searchItem(const std::string &db_path, const std::ve
 {
     auto start = std::chrono::high_resolution_clock::now();
 
-    std::vector<dbone::insert::Row> rows;
+    std::vector<Row> rows;
 
     TableSchema schema(read_schema(db_path, page_size));
 

@@ -6,8 +6,7 @@ bool searchIndexedAcc(const std::string &db_path, const TableSchema &schema,
                       uint32_t currentPage, const DataType &searching,
                       const Column &indexed_col, const Column &pk_col,
                       uint32_t page_size)
-{
-    std::cout << "SEARCHING PAGE " << currentPage << std::endl;
+{ 
     SecondaryIndexNode secondaryIndexNode = SecondaryIndexNode::load(db_path, currentPage, schema, indexed_col, pk_col, page_size);
     std::vector<IndexEntry> entries = secondaryIndexNode.entries();
 
@@ -20,7 +19,6 @@ bool searchIndexedAcc(const std::string &db_path, const TableSchema &schema,
             checkEnd = false;
             if (secondaryIndexNode.page_pointers()[i] != 0)
             {
-                // ✅ propagate result
                 return searchIndexedAcc(db_path, schema,
                                         secondaryIndexNode.page_pointers()[i],
                                         searching, indexed_col, pk_col, page_size);
@@ -32,7 +30,6 @@ bool searchIndexedAcc(const std::string &db_path, const TableSchema &schema,
         }
         else if (*entries[i].value == searching)
         {
-            std::cout << "EQUAL" << std::endl;
             return true;
         }
     }
@@ -41,7 +38,6 @@ bool searchIndexedAcc(const std::string &db_path, const TableSchema &schema,
     {
         if (secondaryIndexNode.page_pointers()[entries.size()] != 0)
         {
-            // ✅ propagate result
             return searchIndexedAcc(db_path, schema,
                                     secondaryIndexNode.page_pointers()[entries.size()],
                                     searching, indexed_col, pk_col, page_size);
@@ -78,21 +74,13 @@ bool searchUnique(const std::string &db_path, const TableSchema &schema,
     {
         if (schema.columns[key]->indexed() && pk_column != nullptr)
         {
-            std::cout << "SEARCHING KEY: " << key
-                      << " for value: " << dataRow.get(key).default_value_str()
-                      << " at page " << value << std::endl;
 
             bool found = searchIndexedAcc(db_path, schema, value,
                                           dataRow.get(key),
                                           *schema.columns[key],
                                           *pk_column,
                                           page_size);
-            std::cout << found << std::endl;
-
-            if (found == true)
-            {
-                std::cout << "TRUE>" << std::endl;
-            }
+            // std::cout << found << std::endl;
 
             if (found)  // if a duplicate was found
                 return true;

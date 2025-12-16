@@ -5,10 +5,11 @@
 #include "dbone/insert.hpp"
 #include "dbone/row.hpp"
 #include <vector>
+#include "row_data.hpp"
 
 struct SearchResult
 {
-    std::vector<dbone::insert::Row> rows;
+    std::vector<Row> rows;
     long long timeTaken;
 };
 
