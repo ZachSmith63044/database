@@ -10,6 +10,7 @@
 #include <vector>
 #include <iomanip>
 #include <dbone/secondary_index_node.hpp>
+#include <algorithm>
 
 struct InsertIntoResult
 {

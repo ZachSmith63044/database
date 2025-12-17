@@ -9,6 +9,7 @@
 #include <system_error>
 #include <iostream>
 #include <fstream>
+#include <cmath>
 #include <iomanip> // for std::setw, std::setfill
 // using namespace dbone::serialize;
 namespace fs = std::filesystem;

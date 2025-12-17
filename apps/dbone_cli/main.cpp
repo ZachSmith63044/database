@@ -51,6 +51,8 @@ int make_table(uint32_t page_size)
         std::cerr << "create_table failed: " << err << "\n";
         return 1;
     }
+
+    return 0;
 }
 
 std::string make_code(size_t id)

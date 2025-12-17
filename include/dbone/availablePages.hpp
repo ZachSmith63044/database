@@ -1,5 +1,6 @@
 #include <vector>
 #include <string>
+#include <cstdint>
 
 struct available_pages
 {

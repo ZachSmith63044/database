@@ -1,6 +1,7 @@
 #include "dbone/columns/dataTypes.hpp"
 #include "dbone/serialize.hpp"
 #include <stdexcept>
+#include <cmath>
 
 // ================= BigIntType =================
 BigIntType::BigIntType(int64_t v) : value_(v) {}
